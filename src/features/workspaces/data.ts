@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
-import { parseWorkspace, selectedBusiness, validBusinessId, WORKSPACE_CHANGED_EVENT } from "./context";
+import { BUSINESS_HEADER, businessSelectionCookies, parseWorkspace, selectedBusiness, validBusinessId, WORKSPACE_CHANGED_EVENT } from "./context";
 import { saveBusinessSelection } from "./selection";
 import { setDisplayedBusiness } from "./fetch";
 import type { ProfileStatus, UserRole } from "@/lib/supabase/types";
@@ -11,32 +11,26 @@ export async function fetchWorkspaceChoices(signal: AbortSignal): Promise<Worksp
   if (!Array.isArray(data)) throw new Error("Unable to load your workspaces.");
   return data as WorkspaceChoice[];
 }
-export async function chooseWorkspace(id: string) {
+export async function chooseWorkspace(id: string, signal?: AbortSignal) {
   if (!validBusinessId(id)) throw new Error("Invalid workspace selection.");
+  signal?.throwIfAborted();
+  const previousSelection = businessSelectionCookies(document.cookie).join(";");
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error("Sign in first.");
-  // Do not restore a revoked selection after a failed authorization attempt.
+  signal?.throwIfAborted();
+
+  // Verify this scope without publishing the cookie to other requests or tabs.
+  const request = supabase.rpc("current_workspace").setHeader(BUSINESS_HEADER, id);
+  const result = await (signal ? request.abortSignal(signal) : request);
+  signal?.throwIfAborted();
+  if (result.error) throw new Error(result.error.message);
+  const workspace = parseWorkspace(result.data, user.id);
+  if (workspace.business.id !== id) throw new Error("Workspace selection could not be verified.");
+  if (previousSelection !== businessSelectionCookies(document.cookie).join(";")) throw new Error("Workspace changed. Reload before continuing.");
+
   saveBusinessSelection(id);
-  try {
-    const result = await supabase.rpc("current_workspace");
-    if (result.error) throw new Error(result.error.message);
-    const workspace = parseWorkspace(result.data, user.id);
-    if (workspace.business.id !== id) throw new Error("Workspace selection could not be verified.");
-    setDisplayedBusiness(id);
-    window.dispatchEvent(new Event(WORKSPACE_CHANGED_EVENT));
-    return workspace;
-  } catch (error) {
-    // A newer selection in another tab or request must survive this failure.
-    try {
-      const currentSelection = selectedBusiness(document.cookie);
-      if (currentSelection === id || currentSelection === null) {
-        if (currentSelection === id) saveBusinessSelection(null);
-        setDisplayedBusiness(null);
-      }
-    } catch {
-      saveBusinessSelection(null);
-      setDisplayedBusiness(null);
-    }
-    throw error;
-  }
+  if (selectedBusiness(document.cookie) !== id) throw new Error("Workspace selection could not be saved.");
+  setDisplayedBusiness(id);
+  window.dispatchEvent(new Event(WORKSPACE_CHANGED_EVENT));
+  return workspace;
 }

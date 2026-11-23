@@ -77,9 +77,20 @@ export async function uploadBusinessLogo(request: Request, context: { params: Pr
     let admin: ReturnType<typeof createSupabaseAdmin>;
     try { admin = createSupabaseAdmin(); } catch { throw new PlatformAccessError("Logo upload is not configured.", 503); }
     const path = `${id}/${randomUUID()}.${type.ext}`;
-    const uploaded = await admin.storage.from(BUCKET).upload(path, bytes, { contentType: file.type, upsert: false, cacheControl: "31536000" });
+    const logos = admin.storage.from(BUCKET);
+    const uploaded = await logos.upload(path, bytes, { contentType: file.type, upsert: false, cacheControl: "31536000" });
     if (uploaded.error) throw new PlatformAccessError("The logo could not be uploaded. Please try again.", 503);
-    const { data } = admin.storage.from(BUCKET).getPublicUrl(path);
+    if (process.env.PLATFORM_BUSINESS_LIFECYCLE_ENABLED === "true") {
+      // If an empty business was deleted while Storage handled the upload, discard this new object.
+      const confirmed = await session.rpc("platform_confirm_business_logo_upload", { p_business_id: id });
+      if (confirmed.error) {
+        const cleanup = await logos.remove([path]);
+        if (cleanup.error) throw cleanup.error;
+        if (confirmed.error.code === "P0002") throw new PlatformAccessError("Business not found.", 404);
+        throw confirmed.error;
+      }
+    }
+    const { data } = logos.getPublicUrl(path);
     return Response.json({ logoUrl: data.publicUrl }, { status: 201, headers });
   } catch (error) { return failure(error); }
 }

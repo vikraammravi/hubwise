@@ -1,23 +1,27 @@
 import type { Profile } from "@/lib/supabase/types";
 import { activeRole } from "@/lib/auth";
+import { businessSlugFromAddress } from "./business-address";
 
 export const BUSINESS_COOKIE = "ahaa_business";
 export const BUSINESS_HEADER = "x-business-id";
+export const BUSINESS_API_HEADER = "x-ahaa-expected-business-id";
 export const WORKSPACE_CHANGED_EVENT = "ahaa:workspace-changed";
 export type Business = { id: string; name: string; slug: string; settings: Record<string, unknown> };
 export type Workspace = { business: Business; profile: Profile };
 export function businessWorkspacesEnabled() { return process.env.NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED === "true"; }
 /** Accept only a local business entry path; never treat the slug as authorization. */
 export function businessEntrySlug(path: string | null): string | null {
-  const match = path?.match(/^\/b\/([a-z0-9]+(?:-[a-z0-9]+)*)$/);
-  return match && match[1].length >= 2 && match[1].length <= 60 ? match[1] : null;
+  return path?.startsWith("/") ? businessSlugFromAddress(path.slice(1)) : null;
 }
 export function validBusinessId(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
+export function businessSelectionCookies(cookie: string): string[] {
+  return cookie.split(";").map(part => part.trim()).filter(part => part.startsWith(BUSINESS_COOKIE + "="));
+}
 /** Selection is a preference, never proof of membership. The database authorizes it. */
 export function selectedBusiness(cookie: string): string | null {
-  const matches = cookie.split(";").map(part => part.trim()).filter(part => part.startsWith(BUSINESS_COOKIE + "="));
+  const matches = businessSelectionCookies(cookie);
   if (!matches.length) return null;
   if (matches.length !== 1) throw new Error("Invalid workspace selection.");
   let value: string;

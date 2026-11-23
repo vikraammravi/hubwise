@@ -16,9 +16,13 @@ import { USER_ROLE_LABELS } from "@/features/users/domain";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { businessWorkspacesEnabled } from "@/features/workspaces/context";
+import { businessRolePath } from "@/features/workspaces/business-routes";
 
 export function UserProfile() {
-  const { profile, loading, error } = useCurrentUser();
+  const { profile, business, loading, error } = useCurrentUser();
+  const signInPath = business && profile
+    ? businessRolePath(business.slug, profile.role === "CENTRAL_ADMIN" ? "/admin" : "/branch")
+    : undefined;
   const branchId = profile?.location_id;
   const loadBranch = useCallback(async (signal: AbortSignal) => {
     const { data, error } = await supabase.from("locations").select("name")
@@ -45,7 +49,7 @@ export function UserProfile() {
           <div><dt className="text-xs text-muted-foreground">Branch</dt><dd className="mt-1">{profile?.role === "CENTRAL_ADMIN" ? "Central Kitchen" : branch.loading ? "Loading branch…" : branch.data?.name || "No branch assigned"}</dd></div>
         </dl>
       </CardContent></Card>
-      <Card><CardContent className="p-2">{businessWorkspacesEnabled() && <Button variant="ghost" asChild className="w-full justify-start"><Link href="/workspaces">Switch workspace</Link></Button>}<ChangePasswordDialog /><SignOutButton /></CardContent></Card>
+      <Card><CardContent className="p-2">{businessWorkspacesEnabled() && <Button variant="ghost" asChild className="w-full justify-start"><Link href="/workspaces">Switch workspace</Link></Button>}<ChangePasswordDialog signInPath={signInPath} /><SignOutButton returnTo={signInPath} /></CardContent></Card>
     </>}
   </div>;
 }

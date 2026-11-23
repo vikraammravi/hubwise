@@ -1,18 +1,33 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { CurrentUserProvider, useCurrentUser } from "./useCurrentUser";
 import { db, queryResult } from "@tests/mocks/supabase";
 import { profile } from "@tests/mocks/fixtures";
-import { businessWorkspace, otherBusinessId, workspaceProfile } from "@tests/mocks/workspaces";
+import { businessId, businessWorkspace, otherBusinessId, workspaceProfile } from "@tests/mocks/workspaces";
+import { saveBusinessSelection } from "@/features/workspaces/selection";
+import { setDisplayedBusiness } from "@/features/workspaces/fetch";
+
+const navigation = vi.hoisted(() => ({ pathname: "/branch/home" }));
+vi.mock("next/navigation", async () => {
+ const { router } = await import("@tests/mocks/supabase");
+ return { useRouter: () => router, usePathname: () => navigation.pathname };
+});
+
+afterEach(() => {
+ navigation.pathname = "/branch/home";
+ window.history.replaceState(null, "", "/");
+ saveBusinessSelection(null);
+ setDisplayedBusiness(null);
+});
 function Reader({label}:{label:string}) { const user=useCurrentUser(); return <p>{label}: {user.loading ? "loading" : user.profile?.full_name ?? "signed out"}</p>; }
 it("remounts user-scoped page state when the authorized business changes",async()=>{
  vi.stubEnv("NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED","true");
  db.auth.getUser.mockResolvedValue({data:{user:{id:workspaceProfile.id}},error:null});
  db.rpc.mockReturnValue(queryResult(businessWorkspace));
  function Draft(){const [value,setValue]=useState("draft");return <input aria-label="Workspace draft" value={value} onChange={e=>setValue(e.target.value)}/>;}
- render(<CurrentUserProvider><Draft/></CurrentUserProvider>);
+ render(<CurrentUserProvider role="BRANCH_MANAGER"><Draft/></CurrentUserProvider>);
  const initial=await screen.findByLabelText("Workspace draft");
  db.rpc.mockReturnValue(queryResult({...businessWorkspace,business:{...businessWorkspace.business,id:otherBusinessId}}));
  act(()=>window.dispatchEvent(new Event("focus")));
@@ -21,7 +36,7 @@ it("remounts user-scoped page state when the authorized business changes",async(
 });
 it("shares one user/profile fetch between a shell and page",async()=>{
  db.auth.getUser.mockResolvedValue({data:{user:{id:profile.id}},error:null});db.from.mockReturnValue(queryResult(profile));
- render(<CurrentUserProvider><Reader label="shell"/><Reader label="page"/></CurrentUserProvider>);
+ render(<CurrentUserProvider role="BRANCH_MANAGER"><Reader label="shell"/><Reader label="page"/></CurrentUserProvider>);
  await screen.findByText("page: Test Manager");
  expect(screen.getByText("shell: Test Manager")).toBeVisible();
  expect(db.auth.getUser).toHaveBeenCalledTimes(1);expect(db.from).toHaveBeenCalledTimes(1);
@@ -31,7 +46,7 @@ it("clears shared profile on sign-out and ignores the previous in-flight respons
  let finish!: (value: unknown) => void;
  db.auth.onAuthStateChange.mockImplementation(cb=>{event=cb;return {data:{subscription:{unsubscribe:vi.fn()}}};});
  db.auth.getUser.mockReturnValue(new Promise(resolve=>{finish=resolve;}));
- render(<CurrentUserProvider><Reader label="page"/></CurrentUserProvider>);
+ render(<CurrentUserProvider role="BRANCH_MANAGER"><Reader label="page"/></CurrentUserProvider>);
  await act(async()=>event("SIGNED_OUT",null));
  expect(screen.getByText("page: signed out")).toBeVisible();
  await act(async()=>finish({data:{user:{id:profile.id}},error:null}));
@@ -51,9 +66,35 @@ it("does not unmount unsaved form state on a same-user auth refresh",async()=>{
  db.auth.onAuthStateChange.mockImplementation(cb=>{event=cb;return {data:{subscription:{unsubscribe:vi.fn()}}};});
  db.auth.getUser.mockResolvedValue({data:{user:{id:profile.id}},error:null});db.from.mockReturnValue(queryResult(profile));
  function Draft(){const [value,setValue]=useState("draft");return <input aria-label="Unsaved draft" value={value} onChange={e=>setValue(e.target.value)}/>;}
- render(<CurrentUserProvider><Draft/></CurrentUserProvider>);
+ render(<CurrentUserProvider role="BRANCH_MANAGER"><Draft/></CurrentUserProvider>);
  const input=await screen.findByLabelText("Unsaved draft");
  await act(async()=>event("SIGNED_IN",{user:{id:profile.id}} as Session));
  await waitFor(()=>expect(db.auth.getUser).toHaveBeenCalledTimes(2));
  expect(screen.getByLabelText("Unsaved draft")).toBe(input);
+});
+
+it("normalizes an authorized legacy bookmark with its query and fragment", async () => {
+ vi.stubEnv("NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED", "true");
+ window.history.replaceState(null, "", "/branch/inventory?date=2026-11-23#count");
+ db.auth.getUser.mockResolvedValue({ data: { user: { id: workspaceProfile.id } }, error: null });
+ db.rpc.mockReturnValue(queryResult(businessWorkspace));
+ render(<CurrentUserProvider role="BRANCH_MANAGER"><Reader label="page"/></CurrentUserProvider>);
+ await waitFor(() => expect(window.location.pathname).toBe("/test-business/branch/inventory"));
+ expect(window.location.search + window.location.hash).toBe("?date=2026-11-23#count");
+});
+
+it("blocks a stale scoped tab from rendering another business", async () => {
+ vi.stubEnv("NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED", "true");
+ navigation.pathname = "/test-business/branch/home";
+ saveBusinessSelection(businessId);
+ db.auth.getUser.mockResolvedValue({ data: { user: { id: workspaceProfile.id } }, error: null });
+ db.rpc.mockReturnValue(queryResult(businessWorkspace));
+ render(<CurrentUserProvider role="BRANCH_MANAGER"><p>Allowed workspace</p></CurrentUserProvider>);
+ expect(await screen.findByText("Allowed workspace")).toBeVisible();
+ saveBusinessSelection(otherBusinessId);
+ db.rpc.mockReturnValue(queryResult({ ...businessWorkspace, business: { ...businessWorkspace.business, id: otherBusinessId, slug: "other-business" } }));
+ act(() => window.dispatchEvent(new Event("focus")));
+ expect(await screen.findByRole("button", { name: "Reload this business" })).toBeVisible();
+ expect(screen.queryByText("Allowed workspace")).not.toBeInTheDocument();
+ expect(document.cookie).toContain(otherBusinessId);
 });

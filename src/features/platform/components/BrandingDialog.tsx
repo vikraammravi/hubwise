@@ -85,7 +85,7 @@ function BrandingForm({ business, onClose, onSaved }: { business: PlatformBusine
   </form>;
 }
 
-/** Edits the sign-in branding a business's people see at /b/<slug>. */
+/** Edits the branding shown on the business's sign-in page. */
 export function BrandingDialog({ business, onClose, onSaved }: { business: PlatformBusiness | null; onClose: () => void; onSaved: () => void }) {
   return <Dialog open={business !== null} onOpenChange={open => { if (!open) onClose(); }}>
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">

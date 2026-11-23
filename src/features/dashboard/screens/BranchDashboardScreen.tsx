@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { BusinessLink } from "@/features/workspaces/BusinessLink";
 import { BranchInventorySummary } from "@/features/inventory/components/BranchInventorySummary";
 import { formatDate, formatTime } from "@/lib/format";
 import { useGreeting } from "@/lib/useGreeting";
@@ -73,11 +73,11 @@ export default function BranchHomePage() {
               Order before 10:00 AM
             </div>
           </div>
-          <Link href="/branch/order" className="shrink-0">
+          <BusinessLink href="/branch/order" className="shrink-0">
             <Button size="lg" className="w-full sm:w-auto">
               Start Today&apos;s Order
             </Button>
-          </Link>
+          </BusinessLink>
         </CardContent>
       </Card>
 
@@ -95,12 +95,12 @@ export default function BranchHomePage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Recent Orders</CardTitle>
-            <Link
+            <BusinessLink
               href="/branch/invoices"
               className="text-sm text-saffron-hover"
             >
               View all
-            </Link>
+            </BusinessLink>
           </CardHeader>
           <CardContent className="divide-y divide-border">
             {orders.length === 0 && !showLoading && (
@@ -133,12 +133,12 @@ export default function BranchHomePage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Upcoming Catering</CardTitle>
-            <Link
+            <BusinessLink
               href="/branch/catering"
               className="text-sm text-saffron-hover"
             >
               View all
-            </Link>
+            </BusinessLink>
           </CardHeader>
           <CardContent className="divide-y divide-border">
             {upcomingCatering.length === 0 && !showLoading && (

@@ -5,11 +5,14 @@ One repository currently builds two deployments. This is route/API separation in
 | Setting | Existing business project | Platform project |
 | --- | --- | --- |
 | APP_SURFACE | business (default if absent) | platform |
+| BUSINESS_DEFAULT_SLUG | `ahaa` on the dedicated Ahaa deployment, after branding and workspace mode are ready | absent |
 | PLATFORM_CONSOLE_ENABLED | false / absent | true |
 | PLATFORM_BUSINESS_REGISTRATION_ENABLED | false / absent | false until the onboarding package is installed |
 | PLATFORM_OWNER_INVITATIONS_ENABLED | absent | false until installed |
 | PLATFORM_OWNER_ASSIGNMENT_ENABLED | absent | false until installed |
 | PLATFORM_BUSINESS_ACTIVATION_ENABLED | absent | false until installed |
+| PLATFORM_BUSINESS_LIFECYCLE_ENABLED | absent | false until the lifecycle migration is installed |
+| OPERATIONS_APP_ORIGIN | optional Operations HTTPS origin; HTTP loopback allowed in development | absent |
 | BUSINESS_APP_ORIGIN | absent | the business app origin invitees use (https; http://localhost only outside production) |
 | BUSINESS_OWNER_ACCEPTANCE_ENABLED | false until installed (needs workspace mode and the server-only Supabase secret key) | absent |
 | NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED | per environment | false |
@@ -21,9 +24,11 @@ Platform project: `operations-platform-admin`, importing the `staging` branch. I
 
 Only staging public Supabase URL/publishable key are needed for this read-only dashboard. No service-role key, production database credentials or Azure key are copied. AI scanning remains disabled. Existing no-index headers and metadata apply.
 
-The platform root redirects to `/superadmin`; sign-in uses `/login?next=/superadmin`. Business pages, workspace selection and business APIs return 404 on the platform deployment. The business surface returns 404 for platform pages, the platform login destination and platform APIs, even if the console flag is accidentally enabled there. Selected cookies and incoming headers cannot choose the deployment surface.
+The platform root redirects to `/superadmin`; sign-in uses `/login?next=/superadmin`. Business pages, workspace selection and business APIs return 404 on the platform deployment. When `OPERATIONS_APP_ORIGIN` is configured, GET and HEAD requests to the business surface's exact `/superadmin` path redirect to that Operations origin without forwarding query parameters. Other platform pages, the platform login destination and platform APIs return 404 on the business surface. Selected cookies and incoming headers cannot choose the deployment surface.
 
 Platform page and API handlers additionally verify the logged-in identity and explicit platform permission. Registration is separately disabled in both the UI and API until its database migration is rehearsed and installed. No platform permission implies customer membership.
+
+Business lifecycle actions require `202611220005_platform_business_lifecycle.sql` after onboarding and branding. Apply it only in environments approved for lifecycle changes. Installation immediately grants the role-checked RPCs to signed-in platform administrators. `PLATFORM_BUSINESS_LIFECYCLE_ENABLED=true` enables the console controls and server routes separately. Superadmins can delete an empty setup before inviting or assigning an admin. They can suspend and restore access for an isolated business while preserving its records. The seeded Ahaa business is protected from both actions.
 
 Local verification: 26 focused tests, TypeScript, scoped lint, module boundaries and the platform-mode production build passed. No SaaS database migrations are applied by the Vercel build. Do not enable operational workspace mode until its paired database release and cross-business acceptance are complete.
 

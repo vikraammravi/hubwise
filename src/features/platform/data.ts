@@ -3,6 +3,7 @@ export type OwnerInvitation = { name: string; email: string; state: OwnerInvitat
 export type BusinessBranding = { display_name: string | null; accent: string | null; logo_url: string | null };
 export type PlatformBusiness = { id: string; name: string; slug: string; status: "provisioning" | "active" | "suspended"; isolation_ready: boolean; owner_assigned: boolean; created_at: string; invitation?: OwnerInvitation | null; branding?: BusinessBranding | null };
 export type PlatformDirectory = { businesses: PlatformBusiness[]; invitationsUnavailable: boolean };
+export type BusinessLifecycleAction = "delete" | "suspend" | "restore";
 
 async function send<T>(url: string, init: RequestInit, fallback: string): Promise<T> {
   const response = await fetch(url, { cache: "no-store", ...init });
@@ -22,6 +23,11 @@ export async function registerBusiness(name: string, slug: string): Promise<void
 }
 export async function activateBusiness(businessId: string): Promise<void> {
   await send(`${businessPath(businessId)}/activate`, { method: "POST" }, "Unable to activate business.");
+}
+export async function changeBusinessLifecycle(businessId: string, action: BusinessLifecycleAction): Promise<void> {
+  await send(businessPath(businessId), action === "delete"
+    ? { method: "DELETE" }
+    : { method: "PATCH", headers: json, body: JSON.stringify({ action }) }, "Unable to change the business.");
 }
 export async function assignBusinessOwner(businessId: string, email: string): Promise<void> {
   await send(`${businessPath(businessId)}/owner`, { method: "POST", headers: json, body: JSON.stringify({ email }) }, "Unable to assign the business admin.");

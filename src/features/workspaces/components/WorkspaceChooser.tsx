@@ -12,6 +12,7 @@ import { USER_ROLE_LABELS } from "@/features/users/domain";
 import { useAsyncData } from "@/lib/useAsyncData";
 import { userHome } from "@/lib/auth";
 import { chooseWorkspace, fetchWorkspaceChoices } from "../data";
+import { businessRolePath } from "../business-routes";
 
 export default function WorkspaceChooser() {
   const router = useRouter();
@@ -25,9 +26,11 @@ export default function WorkspaceChooser() {
     if (!autoOpened.current && choices.length === 1 && only.status === "active" && only.business_status === "active" && only.isolation_ready) {
       autoOpened.current = true;
       try {
-        const workspace = await chooseWorkspace(only.business_id);
-        router.replace(userHome(workspace.profile.role)); router.refresh();
+        const workspace = await chooseWorkspace(only.business_id, signal);
+        signal.throwIfAborted();
+        router.replace(businessRolePath(workspace.business.slug, userHome(workspace.profile.role))); router.refresh();
       } catch (error) {
+        if (signal.aborted) { autoOpened.current = false; throw error; }
         // Fall back to the chooser with the reason; never hide the list.
         setError(error instanceof Error ? error.message : "Unable to open workspace.");
       }
@@ -37,7 +40,7 @@ export default function WorkspaceChooser() {
   const list = useAsyncData(load);
   async function open(id: string) {
     setBusy(id); setError("");
-    try { const workspace = await chooseWorkspace(id); router.replace(userHome(workspace.profile.role)); router.refresh(); }
+    try { const workspace = await chooseWorkspace(id); router.replace(businessRolePath(workspace.business.slug, userHome(workspace.profile.role))); router.refresh(); }
     catch (error) { setError(error instanceof Error ? error.message : "Unable to open workspace."); setBusy(null); }
   }
   return <main className="mx-auto min-h-screen w-full max-w-4xl space-y-5 px-4 py-8 sm:px-6">

@@ -10,7 +10,7 @@ import * as brandingRoute from "@/app/api/platform/businesses/[id]/branding/rout
 import * as logoRoute from "@/app/api/platform/businesses/[id]/branding/logo/route";
 
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServer: vi.fn(() => db) }));
-const bucket = vi.hoisted(() => ({ upload: vi.fn(), getPublicUrl: vi.fn() }));
+const bucket = vi.hoisted(() => ({ upload: vi.fn(), getPublicUrl: vi.fn(), remove: vi.fn() }));
 const privileged = vi.hoisted(() => ({ storage: { from: vi.fn(() => bucket) } }));
 vi.mock("@/lib/supabase/admin", () => ({ createSupabaseAdmin: vi.fn(() => privileged) }));
 
@@ -35,11 +35,13 @@ beforeEach(() => {
   vi.stubEnv("APP_SURFACE", "platform");
   vi.stubEnv("PLATFORM_CONSOLE_ENABLED", "true");
   vi.stubEnv("PLATFORM_BUSINESS_REGISTRATION_ENABLED", "true");
+  vi.stubEnv("PLATFORM_BUSINESS_LIFECYCLE_ENABLED", "false");
   db.auth.getUser.mockResolvedValue({ data: { user: { id: "platform-user" } }, error: null });
   brandingRpc(queryResult({ display_name: "Spice Route", accent: "#0ea5e9", logo_url: null }));
   db.from.mockReturnValue(queryResult({ id: businessId }));
   privileged.storage.from.mockImplementation(() => bucket);
   bucket.upload.mockResolvedValue({ data: { path: "x" }, error: null });
+  bucket.remove.mockResolvedValue({ error: null });
   bucket.getPublicUrl.mockImplementation((path: string) => ({ data: { publicUrl: `https://storage.example/business-branding/${path}` } }));
 });
 
@@ -168,6 +170,17 @@ describe("uploadBusinessLogo", () => {
     await uploadBusinessLogo(upload(logoFile(pngBytes)), context());
     await uploadBusinessLogo(upload(logoFile(pngBytes)), context());
     expect(bucket.upload.mock.calls[0][0]).not.toBe(bucket.upload.mock.calls[1][0]);
+  });
+
+  it("discards only the newly uploaded logo if business deletion won the race", async () => {
+    vi.stubEnv("PLATFORM_BUSINESS_LIFECYCLE_ENABLED", "true");
+    const dbError = { message: "missing business", code: "P0002" };
+    brandingRpc(queryResult(null, dbError));
+    const response = await uploadBusinessLogo(upload(logoFile(pngBytes)), context());
+    expect(response.status).toBe(404);
+    expect(db.rpc).toHaveBeenCalledWith("platform_confirm_business_logo_upload", { p_business_id: businessId });
+    expect(bucket.remove).toHaveBeenCalledWith([bucket.upload.mock.calls[0][0]]);
+    expect(bucket.getPublicUrl).not.toHaveBeenCalled();
   });
 
   it.each([

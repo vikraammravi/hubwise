@@ -2,13 +2,15 @@
 
 import { useState, ReactNode } from "react";
 import { Menu } from "lucide-react";
-import Link from "next/link";
+import { BusinessLink, useBusinessHref } from "@/features/workspaces/BusinessLink";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SidebarNav, type NavEntry, type NavItem } from "./SidebarNav";
 import { WorkspaceBrand, useWorkspaceBranding, useWorkspaceTheme } from "./WorkspaceBrand";
 import type { LoginBranding } from "@/features/workspaces/branding";
+import { businessRolePath } from "@/features/workspaces/business-routes";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import { SignOutButton } from "./SignOutButton";
 
 export type ShellUser = {
@@ -23,6 +25,7 @@ function Sidebar({
   user,
   brandHref,
   branding,
+  signInPath,
   onNavigate,
 }: {
   entries: NavEntry[];
@@ -30,6 +33,7 @@ function Sidebar({
   user: ShellUser;
   brandHref: string;
   branding: LoginBranding | null;
+  signInPath?: string;
   onNavigate?: () => void;
 }) {
   return (
@@ -54,7 +58,7 @@ function Sidebar({
               {user.role}
             </div>
           </div>
-          <SignOutButton variant="icon" />
+          <SignOutButton variant="icon" returnTo={signInPath} />
         </div>
       </div>
     </div>
@@ -78,13 +82,19 @@ export function AppShell({
 }) {
   const [open, setOpen] = useState(false);
   const branding = useWorkspaceBranding();
+  const { business, profile } = useCurrentUser();
+  const businessHref = useBusinessHref();
+  const brandHome = businessHref(brandHref);
+  const signInPath = business && profile
+    ? businessRolePath(business.slug, profile.role === "CENTRAL_ADMIN" ? "/admin" : "/branch")
+    : undefined;
   useWorkspaceTheme(branding);
   const profileEntry=footerEntries?.find((entry):entry is NavItem=>"href" in entry&&entry.href.endsWith("/profile"));
 
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden lg:block w-64 shrink-0 h-dvh sticky top-0 border-r border-sidebar-border">
-        <Sidebar entries={entries} footerEntries={footerEntries} user={user} brandHref={brandHref} branding={branding} />
+        <Sidebar entries={entries} footerEntries={footerEntries} user={user} brandHref={brandHome} branding={branding} signInPath={signInPath} />
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
@@ -101,14 +111,15 @@ export function AppShell({
                 entries={entries}
                 footerEntries={footerEntries}
                 user={user}
-                brandHref={brandHref}
+                brandHref={brandHome}
                 branding={branding}
+                signInPath={signInPath}
                 onNavigate={() => setOpen(false)}
               />
             </SheetContent>
           </Sheet>}
-          <WorkspaceBrand branding={branding} size="sm" href={brandHref} />
-          {mobileNav&&<div className="ml-auto flex items-center gap-2">{profileEntry&&<Button variant="ghost" size="icon" asChild><Link href={profileEntry.href} aria-label="My Profile"><Avatar className="size-8"><AvatarFallback className="text-xs">{user.initials}</AvatarFallback></Avatar></Link></Button>}<SignOutButton variant="icon"/></div>}
+          <WorkspaceBrand branding={branding} size="sm" href={brandHome} />
+          {mobileNav&&<div className="ml-auto flex items-center gap-2">{profileEntry&&<Button variant="ghost" size="icon" asChild><BusinessLink href={profileEntry.href} aria-label="My Profile"><Avatar className="size-8"><AvatarFallback className="text-xs">{user.initials}</AvatarFallback></Avatar></BusinessLink></Button>}<SignOutButton variant="icon" returnTo={signInPath}/></div>}
         </header>
 
         <main

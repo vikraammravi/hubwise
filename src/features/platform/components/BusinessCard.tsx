@@ -1,9 +1,10 @@
 "use client";
-import { Check, Palette } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
-import { invitationStatus, type InvitationStatus, type PlatformBusiness } from "../data";
+import { businessEntryPath } from "@/features/workspaces/business-address";
+import { invitationStatus, type BusinessLifecycleAction, type InvitationStatus, type PlatformBusiness } from "../data";
 
 export type BusinessActions = {
   inviteEnabled: boolean;
@@ -19,6 +20,7 @@ export type BusinessActions = {
   onResolve: (business: PlatformBusiness) => void;
   /** Present when branding may be edited (business setup enabled). */
   onBranding?: (business: PlatformBusiness) => void;
+  onLifecycle?: (business: PlatformBusiness, action: BusinessLifecycleAction) => void;
 };
 
 const BUSINESS_STATUS: Record<PlatformBusiness["status"], { label: string; className: string; dot: string }> = {
@@ -52,6 +54,7 @@ function initials(name: string) {
 
 /** One business in the platform directory: identity, status, onboarding progress and the next action. */
 export function BusinessCard({ business, actions }: { business: PlatformBusiness; actions: BusinessActions }) {
+  const entryPath = businessEntryPath(business.slug);
   const invite = invitationStatus(business.invitation);
   const inSetup = business.status === "provisioning" && !business.isolation_ready;
   const statusUnknown = actions.invitationStatusUnknown && inSetup && !business.owner_assigned;
@@ -60,13 +63,16 @@ export function BusinessCard({ business, actions }: { business: PlatformBusiness
   const canManageInvite = inSetup && !business.owner_assigned && invite === "pending" && actions.inviteEnabled;
   const canResolve = inSetup && !business.owner_assigned && !statusUnknown && invite === "review" && actions.inviteEnabled;
   const canActivate = inSetup && business.owner_assigned && actions.activationEnabled;
+  const lifecycleAction = actions.onLifecycle && !["ahaa", "aaha"].includes(business.slug)
+    ? businessLifecycleAction(business, statusUnknown)
+    : null;
   const steps = [
     { label: "Registered", done: true },
     { label: "Admin ready", done: admin.done },
     { label: "Activated", done: business.status === "active" },
   ];
 
-  return <li className="grid gap-3 px-4 py-4 sm:px-5 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1.7fr)_auto] md:items-center md:gap-6">
+  return <li className="grid gap-3 px-4 py-4 sm:grid-cols-2 sm:items-center sm:px-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,1.75fr)] xl:gap-5">
     <div className="flex min-w-0 items-center gap-3">
       <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-xs font-semibold text-secondary-foreground ring-1 ring-inset ring-border">{initials(business.name)}</span>
       <div className="min-w-0">
@@ -74,7 +80,7 @@ export function BusinessCard({ business, actions }: { business: PlatformBusiness
           <h3 className="truncate text-sm font-semibold">{business.name}</h3>
           <StatusPill status={business.status} />
         </div>
-        <p className="truncate font-mono text-xs text-muted-foreground">/{business.slug}</p>
+        <p className="truncate font-mono text-xs text-muted-foreground">{entryPath}</p>
       </div>
     </div>
 
@@ -95,18 +101,31 @@ export function BusinessCard({ business, actions }: { business: PlatformBusiness
         : <p className="text-xs text-muted-foreground">{business.status === "suspended" ? "Access suspended" : business.isolation_ready ? "Available to members" : "Existing access"}</p>}
     </div>
 
-    <div className="flex flex-wrap items-center gap-2 md:justify-end">
-      {canResolve && <Button size="sm" onClick={() => actions.onResolve(business)}>Resolve interrupted setup</Button>}
-      {canActivate && <Button size="sm" onClick={() => actions.onActivate(business)}>Activate business</Button>}
-      {canSetUpAdmin && <Button size="sm" variant={invite === "none" ? "default" : "outline"} onClick={() => actions.onSetUpAdmin(business)}>{actions.inviteEnabled ? "Invite first admin" : "Assign first admin"}</Button>}
-      {canManageInvite && <>
-        <Button size="sm" variant="outline" onClick={() => actions.onReissue(business)}>Reissue link</Button>
-        <Button size="sm" variant="ghost" className="text-red-700 hover:bg-red-50 hover:text-red-800" onClick={() => actions.onRevoke(business)}>Revoke</Button>
-      </>}
-      {actions.onBranding && <Button size="sm" variant="ghost" onClick={() => actions.onBranding!(business)}><Palette className="size-4" />Branding</Button>}
-      {business.status === "active" && business.isolation_ready && actions.businessAppOrigin && <Button asChild size="sm" variant="outline">
-        <a href={`${actions.businessAppOrigin}/b/${encodeURIComponent(business.slug)}`}>Open business sign-in</a>
+    <div className="flex min-w-0 flex-wrap items-center gap-2 sm:col-span-2 xl:col-span-1 [&_[data-slot=button]]:min-h-11 sm:[&_[data-slot=button]]:min-h-9">
+      {canResolve && <Button size="lg" onClick={() => actions.onResolve(business)}>Resolve interrupted setup</Button>}
+      {canActivate && <Button size="lg" onClick={() => actions.onActivate(business)}>Activate business</Button>}
+      {canSetUpAdmin && <Button size="lg" onClick={() => actions.onSetUpAdmin(business)}>{actions.inviteEnabled ? "Invite first admin" : "Assign first admin"}</Button>}
+      {canManageInvite && <Button size="lg" onClick={() => actions.onReissue(business)}>Reissue link</Button>}
+      {business.status === "active" && business.isolation_ready && actions.businessAppOrigin && entryPath && <Button asChild size="lg">
+        <a href={`${actions.businessAppOrigin}${entryPath}`}>Open business sign-in</a>
+      </Button>}
+      {lifecycleAction === "restore" && <Button size="lg" onClick={() => actions.onLifecycle?.(business, lifecycleAction)}>Restore access</Button>}
+      {actions.onBranding && <Button size="lg" variant="outline" onClick={() => actions.onBranding?.(business)}>Branding</Button>}
+      {canManageInvite && <Button size="lg" variant="destructive" onClick={() => actions.onRevoke(business)}>Revoke</Button>}
+      {(lifecycleAction === "delete" || lifecycleAction === "suspend") && <Button size="lg" variant="destructive" onClick={() => actions.onLifecycle?.(business, lifecycleAction)}>
+        {lifecycleAction === "delete" ? "Delete business" : "Suspend business"}
       </Button>}
     </div>
   </li>;
+}
+
+function businessLifecycleAction(business: PlatformBusiness, statusUnknown: boolean): BusinessLifecycleAction | null {
+  if (business.isolation_ready) {
+    if (business.status === "active") return "suspend";
+    if (business.status === "suspended") return "restore";
+    return null;
+  }
+  if (business.status === "provisioning" && !business.owner_assigned && !business.invitation && !statusUnknown
+    && !Object.values(business.branding ?? {}).some(Boolean)) return "delete";
+  return null;
 }

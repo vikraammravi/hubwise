@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import Link from "next/link";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Banner } from "@/components/shared/Banner";
 import { PasswordInput } from "@/components/shared/PasswordInput";
@@ -40,8 +39,8 @@ export default function AcceptInvitationPage() {
     } catch (error) { setError(error instanceof Error ? error.message : "Unable to accept this invitation."); }
     finally { setBusy(false); }
   }
-  return <AuthShell title="Set up your account" subtitle="Choose a password for your business admin account.">
-    {complete ? <div className="space-y-4"><Banner tone="success">Your account is ready. Your platform administrator must activate the business before you can sign in.</Banner><Button asChild className="w-full"><Link href="/login">Go to sign in</Link></Button></div> : <form onSubmit={submit} className="space-y-4">
+  return <AuthShell title="Set up your account" subtitle="Choose a password for your business admin account." showBrand={false} brandName="" neutral>
+    {complete ? <Banner tone="success">Your account is ready. Your platform administrator must activate the business before you can sign in. After activation, open the business address they provided.</Banner> : <form onSubmit={submit} className="space-y-4">
       {loaded && !token && <Banner tone="danger">This invitation link is invalid or expired. Ask your platform administrator for a new link.</Banner>}
       {error && <Banner tone="danger">{error}</Banner>}
       <div className="space-y-2"><Label htmlFor="new-password">New password</Label><PasswordInput id="new-password" value={password} onChange={event => setPassword(event.target.value)} minLength={12} maxLength={128} autoComplete="new-password" required disabled={!token || busy} /></div>

@@ -531,8 +531,15 @@ it("does not offer activation without an admin or when activation is disabled", 
 it("links an active isolated business to its sign-in page on the business app", async () => {
   showing({ ...platformBusinesses[0], isolation_ready: true, slug: "new-customer" });
   renderDirectory(<PlatformConsole {...allFlags} businessAppOrigin="https://business.example" />);
-  expect(await screen.findByRole("link", { name: "Open business sign-in" })).toHaveAttribute("href", "https://business.example/b/new-customer");
-  expect(screen.getByRole("link", { name: "Business app" })).toHaveAttribute("href", "https://business.example/workspaces");
+  expect(await screen.findByRole("link", { name: "Open business sign-in" })).toHaveAttribute("href", "https://business.example/new-customer");
+  expect(screen.queryByRole("link", { name: "Business app" })).not.toBeInTheDocument();
+});
+
+it("does not publish a sign-in link for a reserved business address", async () => {
+  showing({ ...platformBusinesses[0], isolation_ready: true, slug: "login" });
+  renderDirectory(<PlatformConsole {...allFlags} businessAppOrigin="https://business.example" />);
+  await screen.findByText(platformBusinesses[0].name);
+  expect(screen.queryByRole("link", { name: "Open business sign-in" })).not.toBeInTheDocument();
 });
 
 it("registers a business in a dialog and explains the next setup steps", async () => {
@@ -558,6 +565,16 @@ it("keeps entered details available when registration fails", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Register business" }));
   expect(await screen.findByText("That business address is already in use.")).toBeInTheDocument();
   expect(screen.getByLabelText("Business name")).toHaveValue("Ahaa");
+});
+
+it("explains reserved addresses without submitting them", async () => {
+  renderDirectory(<PlatformConsole registrationEnabled />);
+  fireEvent.click(screen.getByRole("button", { name: "Add business" }));
+  fireEvent.change(screen.getByLabelText("Business name"), { target: { value: "Test Business" } });
+  fireEvent.change(screen.getByLabelText("Business address"), { target: { value: "superadmin" } });
+  fireEvent.click(screen.getByRole("button", { name: "Register business" }));
+  expect(await screen.findByText(/reserved/i)).toBeInTheDocument();
+  expect(registerBusiness).not.toHaveBeenCalled();
 });
 
 it("shows platform navigation while admin setup remains independently disabled", async () => {

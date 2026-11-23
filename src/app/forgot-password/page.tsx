@@ -9,10 +9,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase/client";
 import { Banner } from "@/components/shared/Banner";
+import { businessEntrySlug } from "@/features/workspaces/context";
 
 function InvalidResetLink() {
   const params=useSearchParams();
   return params.get("error")==="invalid_link" ? <Banner tone="danger">This reset link is invalid or expired. Request a new one below.</Banner> : null;
+}
+
+function BackToSignIn({ asButton = false }: { asButton?: boolean }) {
+  const next = useSearchParams().get("next");
+  const href = next && (next === "/superadmin" || businessEntrySlug(next))
+    ? next
+    : "/login?next=/admin";
+
+  return asButton
+    ? <Button asChild size="lg" className="w-full"><Link href={href}>Back to Login</Link></Button>
+    : <Link href={href} className="text-saffron-hover font-medium">Back to login</Link>;
 }
 
 export default function ForgotPasswordPage() {
@@ -34,6 +46,9 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell
+      showBrand={false}
+      brandName=""
+      neutral
       title={sent ? "Check your inbox" : "Forgot password?"}
       subtitle={
         sent
@@ -43,18 +58,12 @@ export default function ForgotPasswordPage() {
       footer={
         <>
           Remembered it?{" "}
-          <Link href="/login" className="text-saffron-hover font-medium">
-            Back to login
-          </Link>
+          <Suspense><BackToSignIn /></Suspense>
         </>
       }
     >
       {sent ? (
-        <Link href="/login" className="block">
-          <Button size="lg" className="w-full">
-            Back to Login
-          </Button>
-        </Link>
+        <Suspense><BackToSignIn asButton /></Suspense>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <Suspense><InvalidResetLink /></Suspense>
@@ -64,7 +73,7 @@ export default function ForgotPasswordPage() {
             <Input
               id="email"
               type="email"
-              placeholder="you@aaha.com"
+              placeholder="you@company.com"
               required
               autoComplete="email"
               value={email}

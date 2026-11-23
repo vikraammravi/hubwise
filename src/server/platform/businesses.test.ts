@@ -76,6 +76,12 @@ it("denies cross-origin creation and invalid details before the provisioning RPC
   expect((await createBusiness(request({ name: "Test", slug: "../admin" }))).status).toBe(400);
   expect(db.rpc.mock.calls.some(([name]) => name === "platform_create_business")).toBe(false);
 });
+it.each(["login", "superadmin", "admin", "workspaces", "accept-invite"])("reserves /%s for application routing", async slug => {
+  const response = await createBusiness(request({ name: "Test", slug }));
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: expect.stringMatching(/reserved/i) });
+  expect(db.rpc.mock.calls.some(([name]) => name === "platform_create_business")).toBe(false);
+});
 it("registers through the authenticated RPC without accepting activation or role overrides", async () => {
   const response = await createBusiness(request({ name: " Test ", slug: "test", status: "active", isolation_ready: true }));
   expect(response.status).toBe(201);

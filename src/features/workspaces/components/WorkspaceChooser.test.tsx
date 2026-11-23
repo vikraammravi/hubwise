@@ -1,13 +1,15 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import WorkspaceChooser from "./WorkspaceChooser";
 import { db, queryResult, router } from "@tests/mocks/supabase";
 import { businessWorkspace, workspaceChoices, workspaceProfile } from "@tests/mocks/workspaces";
 import { setDisplayedBusiness } from "../fetch";
+import { saveBusinessSelection } from "../selection";
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED", "true");
+  saveBusinessSelection(null);
   setDisplayedBusiness(null);
   db.auth.getUser.mockResolvedValue({ data: { user: { id: workspaceProfile.id } }, error: null });
   db.rpc.mockImplementation(name => queryResult(name === "my_workspaces" ? workspaceChoices : businessWorkspace));
@@ -15,8 +17,7 @@ beforeEach(() => {
 it.each([390, 820, 1280])("selects a verified membership and opens its role-specific home at %spx", async width => {
   Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
   render(<WorkspaceChooser />);
-  await userEvent.click(await screen.findByRole("button", { name: "Open workspace" }));
-  expect(router.replace).toHaveBeenCalledWith("/branch/home");
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/test-business/branch/home"));
   expect(db.rpc).toHaveBeenCalledWith("current_workspace");
 });
 it("does not offer access for a suspended or unprovisioned business", async () => {
@@ -25,7 +26,7 @@ it("does not offer access for a suspended or unprovisioned business", async () =
   expect(await screen.findByRole("button", { name: "Open workspace" })).toBeDisabled();
   expect(router.replace).not.toHaveBeenCalled();
 });
-it("retains the chooser and clears selection if access was revoked before opening", async () => {
+it("retains the chooser without selecting a workspace if access was revoked before opening", async () => {
   db.rpc.mockImplementation(name => name === "my_workspaces" ? queryResult(workspaceChoices) : queryResult(null, { message: "Workspace access is unavailable" }));
   render(<WorkspaceChooser />);
   await userEvent.click(await screen.findByRole("button", { name: "Open workspace" }));

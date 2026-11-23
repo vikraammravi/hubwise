@@ -55,9 +55,9 @@ export function AuthShell({
         </div>
       </main>
 
-      <footer className="p-6 text-center text-xs text-muted-foreground">
+      {brandName && <footer className="p-6 text-center text-xs text-muted-foreground">
         © {new Date().getFullYear()} {brandName}
-      </footer>
+      </footer>}
     </div>
   );
 }

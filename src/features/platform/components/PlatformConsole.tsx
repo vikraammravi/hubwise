@@ -9,14 +9,14 @@ import { LoadingState } from "@/components/shared/Spinner";
 import { SignOutButton } from "@/components/shared/SignOutButton";
 import { useAsyncData } from "@/lib/useAsyncData";
 import { cn } from "@/lib/utils";
-import { activateBusiness, attentionItems, fetchBusinesses, invitationStatus, resolveBusinessInvitation, revokeBusinessInvitation, type AttentionReason, type PlatformBusiness } from "../data";
+import { activateBusiness, attentionItems, changeBusinessLifecycle, fetchBusinesses, invitationStatus, resolveBusinessInvitation, revokeBusinessInvitation, type AttentionReason, type BusinessLifecycleAction, type PlatformBusiness } from "../data";
 import { BusinessCard, StatusPill, type BusinessActions } from "./BusinessCard";
 import { InitialAdminDialog, type AdminDialogRequest } from "./InitialAdminDialog";
 import { PlatformBrand } from "./PlatformBrand";
 import { RegisterBusinessDialog } from "./RegisterBusinessDialog";
 import { BrandingDialog } from "./BrandingDialog";
 
-type Flags = { registrationEnabled?: boolean; ownerAssignmentEnabled?: boolean; invitationsEnabled?: boolean; activationEnabled?: boolean; businessAppOrigin?: string | null };
+type Flags = { registrationEnabled?: boolean; ownerAssignmentEnabled?: boolean; invitationsEnabled?: boolean; activationEnabled?: boolean; lifecycleEnabled?: boolean; businessAppOrigin?: string | null };
 type View = "overview" | "businesses";
 type Filter = "all" | "active" | "setup" | "attention";
 
@@ -36,6 +36,12 @@ const ATTENTION: Record<AttentionReason, { title: string; icon: typeof Clock; to
   expired: { title: "Invitation expired", icon: Clock, tone: "text-amber-600 bg-amber-50" },
   expiring: { title: "Invitation expires within 6 hours", icon: Clock, tone: "text-amber-600 bg-amber-50" },
   "no-admin": { title: "No admin invited yet", icon: UserPlus, tone: "text-indigo-600 bg-indigo-50" },
+};
+
+const LIFECYCLE_DIALOG = {
+  delete: { title: "Delete business", label: "Delete", description: (name: string) => `Permanently delete ${name} and release its sign-in address. This action cannot be undone.`, notice: (name: string) => `${name} was deleted.` },
+  suspend: { title: "Suspend business", label: "Suspend", description: (name: string) => `Block business access for members of ${name}. Its data will be kept, and you can restore access later.`, notice: (name: string) => `Access to ${name} is suspended.` },
+  restore: { title: "Restore access", label: "Restore", description: (name: string) => `Allow members of ${name} to access their workspace again.`, notice: (name: string) => `Access to ${name} was restored.` },
 };
 
 function StatTile({ label, value, hint }: { label: string; value: number; hint?: string }) {
@@ -59,7 +65,7 @@ function Panel({ title, description, action, children, id }: { title: string; de
   </section>;
 }
 
-export default function PlatformConsole({ registrationEnabled = false, ownerAssignmentEnabled = false, invitationsEnabled = false, activationEnabled = false, businessAppOrigin = null }: Flags) {
+export default function PlatformConsole({ registrationEnabled = false, ownerAssignmentEnabled = false, invitationsEnabled = false, activationEnabled = false, lifecycleEnabled = false, businessAppOrigin = null }: Flags) {
   const list = useAsyncData(fetchBusinesses);
   const businesses = list.data?.businesses;
   const statusUnknown = list.data?.invitationsUnavailable === true;
@@ -73,6 +79,8 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
   const [revoking, setRevoking] = useState<PlatformBusiness | null>(null);
   const [resolving, setResolving] = useState<PlatformBusiness | null>(null);
   const [branding, setBranding] = useState<PlatformBusiness | null>(null);
+  const [lifecycle, setLifecycle] = useState<{ business: PlatformBusiness; action: BusinessLifecycleAction } | null>(null);
+  const lifecycleDialog = lifecycle && LIFECYCLE_DIALOG[lifecycle.action];
 
   const actions: BusinessActions = {
     inviteEnabled: registrationEnabled && invitationsEnabled,
@@ -86,6 +94,7 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
     onActivate: business => setActivating(business),
     onResolve: business => setResolving(business),
     onBranding: registrationEnabled ? business => setBranding(business) : undefined,
+    onLifecycle: lifecycleEnabled ? (business, action) => setLifecycle({ business, action }) : undefined,
   };
 
   const attention = useMemo(() => attentionItems(businesses ?? [], undefined, statusUnknown), [businesses, statusUnknown]);
@@ -131,6 +140,12 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
     setNotice(`The invitation for ${revoking.name} no longer works.`);
     await list.refresh(true);
   }
+  async function confirmLifecycle() {
+    if (!lifecycle || !lifecycleDialog) return;
+    await changeBusinessLifecycle(lifecycle.business.id, lifecycle.action);
+    setNotice(lifecycleDialog.notice(lifecycle.business.name));
+    await list.refresh(true);
+  }
   function attentionAction(item: { business: PlatformBusiness; reason: AttentionReason }) {
     const { business, reason } = item;
     if (reason === "interrupted" && actions.inviteEnabled) return <Button size="sm" variant="outline" onClick={() => actions.onResolve(business)}>Resolve</Button>;
@@ -169,7 +184,6 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
             <p className="text-sm text-muted-foreground">{heading.subtitle}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {businessAppOrigin && <Button asChild variant="ghost" size="sm"><a href={`${businessAppOrigin}/workspaces`}>Business app<ArrowRight className="size-3.5" /></a></Button>}
             <Button variant="outline" size="sm" onClick={() => void list.refresh(true)} disabled={list.loading} aria-label="Refresh"><RefreshCw className={cn("size-4", list.loading && "animate-spin")} /><span className="hidden sm:inline">Refresh</span></Button>
             {registrationEnabled && <Button size="sm" onClick={() => setRegistering(true)}><Plus className="size-4" />Add business</Button>}
           </div>
@@ -257,5 +271,8 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
     <BrandingDialog business={branding} onClose={() => setBranding(null)} onSaved={() => { const name = branding?.name; setBranding(null); setNotice(`Branding saved for ${name}. Its sign-in page now uses it.`); void list.refresh(true); }} />
     <ConfirmDialog open={resolving !== null} onOpenChange={open => { if (!open) setResolving(null); }} title="Resolve interrupted setup"
       description={resolving?.invitation ? `If ${resolving.invitation.email} already created their login, their admin setup is finished. Otherwise the invitation is cancelled and you can issue a new link.` : undefined} confirmLabel="Resolve" tone="default" onConfirm={resolve} />
+    {lifecycle && lifecycleDialog && <ConfirmDialog open key={lifecycle.action} onOpenChange={open => { if (!open) setLifecycle(null); }}
+      title={lifecycleDialog.title} description={lifecycleDialog.description(lifecycle.business.name)}
+      confirmLabel={lifecycleDialog.label} tone={lifecycle.action === "restore" ? "default" : "danger"} onConfirm={confirmLifecycle} />}
   </div>;
 }

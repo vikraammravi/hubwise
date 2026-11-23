@@ -1,78 +1,139 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import HomePage from "@/app/page";
 import Login from "@/app/login/page";
-import { db, queryResult } from "@tests/mocks/supabase";
+import TenantPage from "@/app/[slug]/page";
+import { BusinessEntryPage } from "@/app/BusinessEntryPage";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { db, queryResult, router } from "@tests/mocks/supabase";
 import { loginBrandingRow } from "@tests/mocks/platform-branding";
 
-// A business's own sign-in page is reached as /login?next=/b/<slug>.
-const search = vi.hoisted(() => ({ value: "next=/b/spice-route" }));
+const search = vi.hoisted(() => ({ value: "" }));
 vi.mock("next/navigation", async () => {
   const { router: mockRouter } = await import("@tests/mocks/supabase");
-  return { useRouter: () => mockRouter, usePathname: () => "/login", useSearchParams: () => new URLSearchParams(search.value) };
+  return {
+    useRouter: () => mockRouter,
+    usePathname: () => "/spice-route",
+    useSearchParams: () => new URLSearchParams(search.value),
+    notFound: vi.fn(() => { throw new Error("NEXT_NOT_FOUND"); }),
+    redirect: vi.fn((path: string) => { throw new Error("NEXT_REDIRECT:" + path); }),
+  };
 });
-const year = new Date().getFullYear();
+vi.mock("@/lib/supabase/server", () => ({ createSupabaseServer: vi.fn(() => db) }));
+vi.mock("@/features/workspaces/components/BusinessEntry", () => ({
+  default: ({ slug }: { slug: string }) => <div>Check membership for {slug}</div>,
+}));
+
+const params = (slug: string, next?: string) => ({ params: Promise.resolve({ slug }), searchParams: Promise.resolve({ next }) });
+
 beforeEach(() => {
-  search.value = "next=/b/spice-route";
+  search.value = "";
+  vi.stubEnv("APP_SURFACE", "business");
   vi.stubEnv("NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED", "true");
   document.title = "";
 });
-const ahaaBranding = () => [screen.queryByAltText(/Aaha/), screen.queryByLabelText("Aaha Central"), screen.queryByText(/Truly South/)];
 
-it("shows the business's own brand, never Ahaa's", async () => {
-  db.rpc.mockReturnValue(queryResult(loginBrandingRow));
-  const { container } = render(<Login />);
-  expect(await screen.findByRole("img", { name: "Spice Route Kitchens logo" })).toHaveAttribute("src", loginBrandingRow.logo_url);
-  expect(db.rpc).toHaveBeenCalledWith("business_login_branding", { p_slug: "spice-route" });
-  expect(screen.getByText("Sign in to Spice Route Kitchens.")).toBeInTheDocument();
-  expect(screen.getByText(`© ${year} Spice Route Kitchens`)).toBeInTheDocument();
-  await waitFor(() => expect(document.title).toBe("Sign in · Spice Route Kitchens"));
-  expect(ahaaBranding()).toEqual([null, null, null]);
-  expect(screen.getByLabelText("Email")).toHaveAttribute("placeholder", "you@company.com");
-  const shell = container.querySelector(".neutral-surface") as HTMLElement;
-  expect(shell).not.toBeNull();
-  expect(shell.style.getPropertyValue("--primary")).toBe("#0ea5e9");
-  expect(shell.style.getPropertyValue("--ring")).toBe("#0ea5e9");
-  expect(shell.style.getPropertyValue("--saffron-hover")).toBe("#0ea5e9");
+it("uses the top-level business page and removes the old landing page", async () => {
+  const entry = await TenantPage(params("spice-route")) as ReactElement<{ slug: string }>;
+  expect(entry.type).toBe(BusinessEntryPage);
+  expect(entry.props.slug).toBe("spice-route");
+  expect(() => HomePage()).toThrow("NEXT_NOT_FOUND");
 });
 
-it("shows initials and no injected styles when the stored values are unsafe", async () => {
+it("uses /aaha for the Ahaa workspace's existing slug", async () => {
+  const entry = await TenantPage(params("aaha")) as ReactElement<{ slug: string }>;
+  expect(entry.props.slug).toBe("ahaa");
+  await expect(TenantPage(params("ahaa"))).rejects.toThrow("NEXT_REDIRECT:/aaha");
+});
+
+it("denies reserved names, disabled workspaces and tenant pages on operations", async () => {
+  await expect(TenantPage(params("login"))).rejects.toThrow("NEXT_NOT_FOUND");
+  vi.stubEnv("NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED", "false");
+  await expect(TenantPage(params("spice-route"))).rejects.toThrow("NEXT_NOT_FOUND");
+  vi.stubEnv("NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED", "true");
+  vi.stubEnv("APP_SURFACE", "platform");
+  await expect(TenantPage(params("spice-route"))).rejects.toThrow("NEXT_NOT_FOUND");
+  expect(createSupabaseServer).not.toHaveBeenCalled();
+});
+
+it("shows tenant branding at the tenant URL and reloads the same address after sign-in", async () => {
+  db.rpc.mockReturnValue(queryResult(loginBrandingRow));
+  db.auth.signInWithPassword.mockResolvedValue({ data: { user: { id: "customer-user" } }, error: null });
+  const { container } = render(await BusinessEntryPage({ slug: "spice-route", next: null }));
+  expect(screen.getByRole("img", { name: "Spice Route Kitchens logo" })).toHaveAttribute("src", loginBrandingRow.logo_url);
+  expect(db.rpc).toHaveBeenCalledWith("business_login_branding", { p_slug: "spice-route" });
+  expect(createSupabaseServer).toHaveBeenCalledWith({ workspace: false });
+  expect(screen.getByText("Sign in to Spice Route Kitchens.")).toBeInTheDocument();
+  expect(screen.queryByAltText(/Aaha/)).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password?next=%2Fspice-route");
+  expect((container.querySelector(".neutral-surface") as HTMLElement).style.getPropertyValue("--primary")).toBe("#0ea5e9");
+  await waitFor(() => expect(document.title).toBe("Sign in · Spice Route Kitchens"));
+
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "admin@customer.invalid" } });
+  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "example-password" } });
+  fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/spice-route"));
+  expect(router.refresh).toHaveBeenCalled();
+  expect(db.rpc).toHaveBeenCalledTimes(1);
+});
+
+it("checks the selected business membership after authentication rather than showing sign-in again", async () => {
+  db.rpc.mockReturnValue(queryResult(loginBrandingRow));
+  db.auth.getUser.mockResolvedValue({ data: { user: { id: "customer-user" } }, error: null });
+  render(await BusinessEntryPage({ slug: "spice-route", next: null }));
+  expect(screen.getByText("Check membership for spice-route")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Sign In" })).not.toBeInTheDocument();
+});
+
+it("passes the scoped page to the business entry after entering credentials", async () => {
+  db.rpc.mockReturnValue(queryResult(loginBrandingRow));
+  db.auth.signInWithPassword.mockResolvedValue({ data: { user: { id: "customer-user" } }, error: null });
+  const next = "/spice-route/admin/invoices?tab=invoices#combined";
+  render(await BusinessEntryPage({ slug: "spice-route", next }));
+  expect(screen.getByRole("heading", { name: "Admin sign in" })).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "admin@customer.invalid" } });
+  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "example-password" } });
+  fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/spice-route?next=" + encodeURIComponent(next)));
+});
+
+it("shows initials and omits unsafe branding values", async () => {
   db.rpc.mockReturnValue(queryResult({ name: "Spice Route", accent: "red;}", logo_url: "javascript:alert(1)" }));
-  const { container } = render(<Login />);
-  expect(await screen.findByText("SR")).toBeInTheDocument();
+  const { container } = render(await BusinessEntryPage({ slug: "spice-route", next: null }));
+  expect(screen.getByText("SR")).toBeInTheDocument();
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
   expect((container.querySelector(".neutral-surface") as HTMLElement).getAttribute("style")).toBeNull();
 });
 
-it.each([
-  ["an unknown or inactive business", () => db.rpc.mockReturnValue(queryResult(null))],
-  ["a failed lookup", () => db.rpc.mockReturnValue(queryResult(null, { message: "private database detail" }))],
-])("shows a neutral page with no logo for %s", async (_label, arrange) => {
-  arrange();
-  const { container } = render(<Login />);
-  await waitFor(() => expect(db.rpc).toHaveBeenCalledWith("business_login_branding", { p_slug: "spice-route" }));
-  await waitFor(() => expect(document.title).toBe("Sign in"));
-  expect(screen.queryByRole("img")).not.toBeInTheDocument();
-  expect(ahaaBranding()).toEqual([null, null, null]);
-  expect(screen.getByText("Sign in to keep the kitchen moving.")).toBeInTheDocument();
-  expect(container.querySelector(".neutral-surface")).not.toBeNull();
-  expect(screen.queryByText(/private/)).not.toBeInTheDocument();
-  expect(screen.getByLabelText("Email")).toHaveAttribute("placeholder", "you@company.com");
+it("shows no sign-in for unknown or inactive businesses and suppresses private lookup errors", async () => {
+  db.rpc.mockReturnValueOnce(queryResult(null));
+  await expect(BusinessEntryPage({ slug: "unknown-tenant", next: null })).rejects.toThrow("NEXT_NOT_FOUND");
+  expect(db.auth.getUser).not.toHaveBeenCalled();
+
+  db.rpc.mockReturnValueOnce(queryResult(null, { message: "private database detail" }));
+  await expect(BusinessEntryPage({ slug: "spice-route", next: null })).rejects.toThrow("Unable to load sign-in details.");
 });
 
-it("does not look up business branding when workspaces are off or the next path is not a business entry", async () => {
-  vi.stubEnv("NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED", "false");
-  const { unmount } = render(<Login />);
-  expect(screen.getByLabelText("Aaha Central")).toBeInTheDocument();
-  unmount();
-  vi.stubEnv("NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED", "true");
-  for (const value of ["", "next=/admin/dashboard", "next=/b/Bad_Slug", "next=/b/spice-route/extra"]) {
-    search.value = value;
-    const view = render(<Login />);
-    expect(screen.getByLabelText("Email")).toHaveAttribute("placeholder", "you@aaha.com");
-    expect(screen.getByText(new RegExp(`© ${year} Aaha Central`))).toBeInTheDocument();
-    view.unmount();
-  }
-  await new Promise(resolve => setTimeout(resolve, 0));
+it.each([
+  ["Admin sign in", "/spice-route/admin/invoices?tab=combined"],
+  ["Branch sign in", "/spice-route/branch/inventory?date=2026-11-23"],
+])("keeps branded %s and retains the selected continuation after sign-in", async (title, next) => {
+  db.rpc.mockReturnValue(queryResult(loginBrandingRow));
+  db.auth.signInWithPassword.mockResolvedValue({ data: { user: { id: "customer-user" } }, error: null });
+  render(await BusinessEntryPage({ slug: "spice-route", next }));
+  expect(screen.getByRole("heading", { name: title })).toBeVisible();
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "admin@customer.invalid" } });
+  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "example-password" } });
+  fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/spice-route?next=${encodeURIComponent(next)}`));
+});
+
+it("uses a neutral form for protected-route continuations without a tenant", () => {
+  search.value = "next=/admin/dashboard";
+  render(<Login />);
+  expect(screen.getByLabelText("Email")).toHaveAttribute("placeholder", "you@company.com");
+  expect(screen.queryByAltText(/Aaha/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Truly South|kitchen moving/)).not.toBeInTheDocument();
   expect(db.rpc).not.toHaveBeenCalledWith("business_login_branding", expect.anything());
-  expect(document.title).toBe("");
 });

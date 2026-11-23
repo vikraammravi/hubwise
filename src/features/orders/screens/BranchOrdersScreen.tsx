@@ -3,7 +3,7 @@ import { FilterBar } from "@/components/shared/FilterBar";
 import { CardActions } from "@/components/shared/CardActions";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { BusinessLink, useBusinessHref } from "@/features/workspaces/BusinessLink";
 import { supabase } from "@/lib/supabase/client";
 import { useAsyncData } from "@/lib/useAsyncData";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
@@ -33,6 +33,7 @@ const STATUS_OPTIONS: {value:OrderStatus|"ALL";label:string}[] = [
 ];
 export default function BranchInvoicesPage() {
   const router = useRouter();
+  const businessHref = useBusinessHref();
   const compact=useCompactLayout();
   const [section, setSection] = useState<"orders" | "invoices">("orders");
   useEffect(()=>{const timer=window.setTimeout(()=>{if(new URLSearchParams(window.location.search).get("tab")==="invoices")setSection("invoices");},0);return()=>window.clearTimeout(timer);},[]);
@@ -55,7 +56,7 @@ export default function BranchInvoicesPage() {
   }, [page, status, orderSearch]);
   const { data, loading, error } = useAsyncData(load, { enabled: section === "orders", pollInterval: POLL_INTERVAL });
   const ActionContainer=compact?CardActions:"div";
-  const orderActions=(order:BranchOrder)=><ActionContainer className={compact?undefined:"flex flex-wrap gap-2"}><Button asChild size="sm" variant="outline"><Link onClick={event=>event.stopPropagation()} href={`/branch/invoices/${order.id}`}>View Order</Link></Button>{order.status==="SUBMITTED"&&<Button asChild size="sm"><Link onClick={event=>event.stopPropagation()} href={`/branch/order?edit=${order.id}`}>Edit Order</Link></Button>}</ActionContainer>;
+  const orderActions=(order:BranchOrder)=><ActionContainer className={compact?undefined:"flex flex-wrap gap-2"}><Button asChild size="sm" variant="outline"><BusinessLink onClick={event=>event.stopPropagation()} href={`/branch/invoices/${order.id}`}>View Order</BusinessLink></Button>{order.status==="SUBMITTED"&&<Button asChild size="sm"><BusinessLink onClick={event=>event.stopPropagation()} href={`/branch/order?edit=${order.id}`}>Edit Order</BusinessLink></Button>}</ActionContainer>;
   const columns: Column<BranchOrder>[] = [
     { key: "number", header: "Order #", render: order => <span className="font-medium">#{order.order_number}</span> },
     { key: "date", header: "Placed", render: order => formatDate(order.order_date) },
@@ -72,9 +73,9 @@ export default function BranchInvoicesPage() {
     <p className="text-xs text-muted-foreground">Pickup: {order.pickup_date ? formatDate(order.pickup_date) : "—"}</p>
     <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><div><p className="text-xs text-muted-foreground">Pickup Approval</p><PickupApprovalBadge requests={order.pickup_requests??[]}/></div><div className="text-right"><p className="text-xs text-muted-foreground">Total</p><p className="font-medium">{formatMoney(order.final_total_amount)}</p></div></div>
     <div className="border-t pt-3">{orderActions(order)}</div>
-  </>}</RecordCards>:<DataTable data={data?.rows??null} columns={columns} loading={loading} rowKey={order=>order.id} onRowClick={order=>router.push(`/branch/invoices/${order.id}`)} emptyTitle={emptyTitle} emptyBody={emptyBody}/>;
+  </>}</RecordCards>:<DataTable data={data?.rows??null} columns={columns} loading={loading} rowKey={order=>order.id} onRowClick={order=>router.push(businessHref(`/branch/invoices/${order.id}`))} emptyTitle={emptyTitle} emptyBody={emptyBody}/>;
   return <div className="max-w-[1100px] mx-auto space-y-5">
-    <PageHeader title="Orders" subtitle="Track your orders and view combined invoices." actions={<Button asChild><Link href="/branch/order">Place Order</Link></Button>} />
+    <PageHeader title="Orders" subtitle="Track your orders and view combined invoices." actions={<Button asChild><BusinessLink href="/branch/order">Place Order</BusinessLink></Button>} />
     <FilterTabs tabs={[{value:"orders",label:"Orders"},{value:"invoices",label:"Invoices"}]} value={section} onChange={setSection} />
     {section === "orders" ? <><FilterBar><div className="space-y-1.5"><Label htmlFor="branch-order-search">Search Order Number</Label><Input id="branch-order-search" type="search" className="h-10 cursor-text" placeholder="e.g. #15" value={search} onChange={event=>{setSearch(event.target.value);setPage(0);}}/></div><div className="space-y-1.5"><Label htmlFor="branch-order-status">Status</Label><FormSelect id="branch-order-status" value={status} onChange={value=>{setStatus(value);setPage(0);}} options={STATUS_OPTIONS}/></div></FilterBar>{error && <Banner tone="danger">{error}</Banner>}{orderList}<Pagination page={page} pageSize={PAGE_SIZE} count={data?.count ?? 0} busy={loading} onChange={setPage} /></> : <div className="space-y-3"><p className="text-sm text-muted-foreground">Combined invoices sent by central admin. Open an invoice to see its items, totals and included orders.</p><FilterBar columns={3}><div className="space-y-1.5"><Label htmlFor="branch-invoice-from">From Date</Label><Input id="branch-invoice-from" type="date" value={startDate} max={endDate||undefined} onChange={event=>setStartDate(event.target.value)}/></div><div className="space-y-1.5"><Label htmlFor="branch-invoice-to">To Date</Label><Input id="branch-invoice-to" type="date" value={endDate} min={startDate||undefined} onChange={event=>setEndDate(event.target.value)}/></div><Button variant="outline" onClick={()=>{setStartDate("");setEndDate("");}}>Clear Dates</Button></FilterBar>{startDate&&endDate&&startDate>endDate?<Banner tone="danger">From date must be on or before to date.</Banner>:<WeeklyInvoiceList key={`${startDate}-${endDate}`} filters={{branchId:"",startDate,endDate}} mode="sent" isAdmin={false}/>}</div>}
   </div>;

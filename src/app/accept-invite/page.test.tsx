@@ -17,6 +17,7 @@ it("removes the invitation secret from the address and submits a user-chosen pas
   fireEvent.click(screen.getByRole("button", { name: "Set password" }));
   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/onboarding/accept", expect.objectContaining({ method: "POST", cache: "no-store", body: JSON.stringify({ token, password: "Strong-password-123" }) })));
   expect(await screen.findByText(/platform administrator must activate/)).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Go to sign in" })).not.toBeInTheDocument();
   expect(screen.queryByLabelText("New password")).not.toBeInTheDocument();
 });
 

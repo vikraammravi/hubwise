@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { BusinessLink } from "@/features/workspaces/BusinessLink";
 import { useGreeting } from "@/lib/useGreeting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -47,9 +47,9 @@ export default function AdminDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Low Stock</CardTitle>
-            <Link href="/admin/stock" className="text-sm text-saffron-hover">
+            <BusinessLink href="/admin/stock" className="text-sm text-saffron-hover">
               Manage stock
-            </Link>
+            </BusinessLink>
           </CardHeader>
           <CardContent className="space-y-3">
             {lowItems.length === 0 && !loading && <EmptyState title="Everything stocked" />}
@@ -71,9 +71,9 @@ export default function AdminDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Recent Branch Orders</CardTitle>
-            <Link href="/admin/orders" className="text-sm text-saffron-hover">
+            <BusinessLink href="/admin/orders" className="text-sm text-saffron-hover">
               View all
-            </Link>
+            </BusinessLink>
           </CardHeader>
           <CardContent className="divide-y divide-border">
             {orders.length === 0 && !loading && <EmptyState title="No orders today" />}

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { workspaceFetch, setDisplayedBusiness } from "./fetch";
+import { businessApiHeaders, workspaceFetch, setDisplayedBusiness } from "./fetch";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import { businessId, otherBusinessId } from "@tests/mocks/workspaces";
 
@@ -10,6 +10,13 @@ beforeEach(() => {
   vi.mocked(fetch).mockResolvedValue(new Response("{}"));
 });
 afterEach(() => { document.cookie = "ahaa_business=; Max-Age=0; path=/"; setDisplayedBusiness(null); });
+it("sends the displayed business even if another tab changed the cookie", () => {
+  setDisplayedBusiness(businessId);
+  document.cookie = `ahaa_business=${otherBusinessId}; path=/`;
+  const headers = new Headers(businessApiHeaders({ "Content-Type": "application/json" }));
+  expect(headers.get("x-ahaa-expected-business-id")).toBe(businessId);
+  expect(headers.get("Content-Type")).toBe("application/json");
+});
 it("forwards selection only to this project's data endpoints and preserves request options", async () => {
   const signal = new AbortController().signal;
   await workspaceFetch(SUPABASE_URL + "/rest/v1/orders", { headers: { Authorization: "Bearer test", "x-business-id": "stale" }, signal });
@@ -49,4 +56,21 @@ it("allows the chooser to recover from a malformed selection without forwarding 
   document.cookie = "ahaa_business=invalid; path=/";
   await workspaceFetch(SUPABASE_URL + "/rest/v1/rpc/my_workspaces", { method: "POST" });
   expect(new Headers(vi.mocked(fetch).mock.calls[0][1]?.headers).has("x-business-id")).toBe(false);
+});
+
+it("authorizes an explicit candidate without changing the selected workspace", async () => {
+  await workspaceFetch(SUPABASE_URL + "/rest/v1/rpc/current_workspace", {
+    method: "POST",
+    headers: { "x-business-id": otherBusinessId },
+  });
+  expect(new Headers(vi.mocked(fetch).mock.calls[0][1]?.headers).get("x-business-id")).toBe(otherBusinessId);
+  expect(document.cookie).toContain(`ahaa_business=${businessId}`);
+});
+
+it("rejects a malformed explicit workspace candidate before sending the request", async () => {
+  await expect(workspaceFetch(SUPABASE_URL + "/rest/v1/rpc/current_workspace", {
+    method: "POST",
+    headers: { "x-business-id": "invalid" },
+  })).rejects.toThrow("Invalid workspace");
+  expect(fetch).not.toHaveBeenCalled();
 });

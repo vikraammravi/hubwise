@@ -21,5 +21,5 @@ export default async function SuperadminPage() {
     if (error instanceof PlatformAccessError) notFound();
     throw error;
   }
-  return <PlatformConsole registrationEnabled={process.env.PLATFORM_BUSINESS_REGISTRATION_ENABLED === "true"} ownerAssignmentEnabled={process.env.PLATFORM_OWNER_ASSIGNMENT_ENABLED === "true"} invitationsEnabled={process.env.PLATFORM_OWNER_INVITATIONS_ENABLED === "true"} activationEnabled={process.env.PLATFORM_BUSINESS_ACTIVATION_ENABLED === "true"} businessAppOrigin={businessAppOrigin()} />;
+  return <PlatformConsole registrationEnabled={process.env.PLATFORM_BUSINESS_REGISTRATION_ENABLED === "true"} ownerAssignmentEnabled={process.env.PLATFORM_OWNER_ASSIGNMENT_ENABLED === "true"} invitationsEnabled={process.env.PLATFORM_OWNER_INVITATIONS_ENABLED === "true"} activationEnabled={process.env.PLATFORM_BUSINESS_ACTIVATION_ENABLED === "true"} lifecycleEnabled={process.env.PLATFORM_BUSINESS_LIFECYCLE_ENABLED === "true"} businessAppOrigin={businessAppOrigin()} />;
 }

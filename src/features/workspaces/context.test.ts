@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { businessEntrySlug, parseWorkspace, selectedBusiness } from "./context";
+import { businessEntryPath } from "./business-address";
 import { businessId, businessWorkspace, workspaceProfile } from "@tests/mocks/workspaces";
 
 it("treats selection as an untrusted preference and rejects malformed or duplicate cookies", () => {
@@ -10,8 +11,17 @@ it("treats selection as an untrusted preference and rejects malformed or duplica
   }
 });
 it("accepts only local, canonical business entry paths", () => {
-  expect(businessEntrySlug("/b/example-business")).toBe("example-business");
-  for (const path of [null,"//other.test/b/example","/b/a","/b/Example","/b/example/../admin","/b/example?next=//other.test","/b/%2fexample",`/b/${"a".repeat(61)}`]) expect(businessEntrySlug(path)).toBeNull();
+  expect(businessEntrySlug("/example-business")).toBe("example-business");
+  expect(businessEntryPath("example-business")).toBe("/example-business");
+  expect(businessEntryPath("login")).toBeNull();
+  for (const path of [null,"/", "/login", "/admin", "/superadmin", "//other.test/b/example", "/b/example-business", "/b/a", "/b/Example", "/b/example/../admin", "/b/example?next=//other.test", "/b/%2fexample", "/%2fexample", `/${"a".repeat(61)}`]) expect(businessEntrySlug(path)).toBeNull();
+});
+
+it("keeps Ahaa's workspace identity behind the /aaha sign-in address", () => {
+  expect(businessEntryPath("ahaa")).toBe("/aaha");
+  expect(businessEntrySlug("/aaha")).toBe("ahaa");
+  expect(businessEntrySlug("/ahaa")).toBe("ahaa");
+  expect(businessEntrySlug("/b/ahaa")).toBeNull();
 });
 
 it("requires an active, correctly assigned profile belonging to the authenticated identity", () => {

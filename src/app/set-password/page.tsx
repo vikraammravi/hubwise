@@ -64,7 +64,7 @@ function SetPasswordInner() {
   }
 
   return (
-    <AuthShell title={c.title} subtitle={c.subtitle}>
+    <AuthShell title={c.title} subtitle={c.subtitle} showBrand={false} brandName="" neutral>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="password">New Password</Label>

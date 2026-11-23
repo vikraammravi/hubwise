@@ -3,8 +3,9 @@
 import { LogOut } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { businessWorkspacesEnabled } from "@/features/workspaces/context";
+import { businessRolePath, parseBusinessRolePath } from "@/features/workspaces/business-routes";
 import { saveBusinessSelection } from "@/features/workspaces/selection";
 import { setDisplayedBusiness } from "@/features/workspaces/fetch";
 
@@ -13,15 +14,24 @@ type Variant = "row" | "icon" | "compact";
 export function SignOutButton({
   variant = "row",
   className,
+  returnTo,
 }: {
   variant?: Variant;
   className?: string;
+  returnTo?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   async function handleSignOut() {
     await supabase.auth.signOut();
-    if (businessWorkspacesEnabled()) { saveBusinessSelection(null); setDisplayedBusiness(null); }
-    router.replace("/login");
+    const workspaceMode = businessWorkspacesEnabled();
+    if (workspaceMode) { saveBusinessSelection(null); setDisplayedBusiness(null); }
+    const scopedPath = workspaceMode && pathname ? parseBusinessRolePath(pathname) : null;
+    const signIn = scopedPath
+      ? businessRolePath(scopedPath.slug, scopedPath.rolePath.split("/")[1] === "admin" ? "/admin" : "/branch")
+      : returnTo ?? "/login?next=/admin";
+    const destination = pathname === "/superadmin" ? "/superadmin" : signIn;
+    router.replace(destination);
     router.refresh();
   }
 

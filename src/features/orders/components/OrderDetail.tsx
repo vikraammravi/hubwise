@@ -24,7 +24,7 @@ import type { Order, OrderLine, OrderStatus, PickupRequest } from "@/lib/supabas
 import { PickupApprovalPanel } from "@/features/orders/components/PickupApprovalPanel";
 import { pickupHasChanges, pickupQuantitiesValid } from "@/features/orders/pickup";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
+import { BusinessLink } from "@/features/workspaces/BusinessLink";
 import { OrderTimeline } from "@/features/orders/components/OrderTimeline";
 import { formatDateTime, TAX_RATE, POLL_INTERVAL } from "@/lib/format";
 import { useCompactLayout } from "@/lib/useCompactLayout";
@@ -340,7 +340,7 @@ export function OrderDetail({
   return (
     <div className="min-w-0 space-y-5">
       {error && <Banner tone="danger">{error}</Banner>}
-      {!canEdit && order.weekly_invoices?.sent_at && <Banner tone="success">Your invoice is available. <Button asChild variant="outline" size="sm"><Link href={`/branch/invoices/weekly/${order.weekly_invoice_id}`}>View Invoice</Link></Button></Banner>}
+      {!canEdit && order.weekly_invoices?.sent_at && <Banner tone="success">Your invoice is available. <Button asChild variant="outline" size="sm"><BusinessLink href={`/branch/invoices/weekly/${order.weekly_invoice_id}`}>View Invoice</BusinessLink></Button></Banner>}
 
       {canPickupEdit && (
         <Banner tone="success">
@@ -448,7 +448,7 @@ export function OrderDetail({
 
             {canPickupEdit && <Button className="w-full mt-4" onClick={()=>setPickupOpen(true)}><PackageCheck className="size-4"/>Review Pickup</Button>}
 
-            {canCancel&&<div className="mt-4 grid grid-cols-2 gap-2">{!canEdit&&order.status==="SUBMITTED"&&<Button asChild className="w-full h-11"><Link href={`/branch/order?edit=${order.id}`}>Edit Order</Link></Button>}
+            {canCancel&&<div className="mt-4 grid grid-cols-2 gap-2">{!canEdit&&order.status==="SUBMITTED"&&<Button asChild className="w-full h-11"><BusinessLink href={`/branch/order?edit=${order.id}`}>Edit Order</BusinessLink></Button>}
             {canCancel && (
               <ConfirmDialog
                 trigger={

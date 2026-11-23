@@ -3,6 +3,7 @@ import { FilterBar } from "@/components/shared/FilterBar";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { BusinessLink, useBusinessHref } from "@/features/workspaces/BusinessLink";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InvoiceTotals } from "@/features/billing/components/InvoiceTotals";
 import { formatMoney, taxLabel, formatDate, formatDateTime } from "@/lib/format";
@@ -30,6 +31,7 @@ const HST = 0.13;
 
 export function BranchOrderForm({editOrderId=null}:{editOrderId?:string|null}) {
   const router = useRouter();
+  const businessHref = useBusinessHref();
   const [submissionId]=useState(()=>crypto.randomUUID());
   const { userId, profile } = useCurrentUser();
   const loadInventory=useCallback((signal:AbortSignal)=>fetchInventory(signal),[]);
@@ -94,10 +96,10 @@ export function BranchOrderForm({editOrderId=null}:{editOrderId?:string|null}) {
       if(editOrderId){
         if(!existing)throw new Error("The order could not be loaded for editing.");
         await updateSubmittedOrder(existing,qty);
-        router.push(`/branch/invoices/${existing.id}`);return;
+        router.push(businessHref(`/branch/invoices/${existing.id}`));return;
       }
       await createBranchOrder(submissionId,qty);
-      router.push(`/branch/invoices`);
+      router.push(businessHref("/branch/invoices"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to place order");
       setSubmitting(false);
@@ -110,7 +112,7 @@ export function BranchOrderForm({editOrderId=null}:{editOrderId?:string|null}) {
 
       {error && <Banner tone="danger">{error}</Banner>}
       {inventory.error&&<Banner tone="danger">Unable to load branch stock: {inventory.error}</Banner>}
-      {inventory.data?.latest&&<Banner tone="info">Branch inventory last updated: {formatDate(inventory.data.latest.count_date)} · {inventory.data.latest.submitted_name} · {formatDateTime(inventory.data.latest.submitted_at)}. <a href="/branch/inventory" className="underline">View inventory</a></Banner>}
+      {inventory.data?.latest&&<Banner tone="info">Branch inventory last updated: {formatDate(inventory.data.latest.count_date)} · {inventory.data.latest.submitted_name} · {formatDateTime(inventory.data.latest.submitted_at)}. <BusinessLink href="/branch/inventory" className="underline">View inventory</BusinessLink></Banner>}
 
       <FilterBar columns={3}>
         <CatalogFilters inline id="order" search={filters.search} category={filters.category} categories={filters.categories} onSearch={filters.setSearch} onCategory={filters.setCategory}/>

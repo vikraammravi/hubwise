@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { FormDialog } from "@/components/shared/FormDialog";
 import { FormField } from "@/components/shared/FormField";
 
-export function ChangePasswordDialog() {
+export function ChangePasswordDialog({ signInPath = "/login" }: { signInPath?: string }) {
   const router=useRouter();
   const [open,setOpen]=useState(false);
   const [current,setCurrent]=useState("");
@@ -25,7 +25,7 @@ export function ChangePasswordDialog() {
     setCurrent("");setPassword("");setConfirm("");
     const result=await supabase.auth.signOut({scope:"global"});
     if(result.error)throw new Error("Password updated. Please sign out and sign in with the new password.");
-    router.replace("/login?reset=1");router.refresh();
+    router.replace(`${signInPath}?reset=1`);router.refresh();
   }
   return <>
     <Button variant="ghost" size="sm" className="w-full justify-start" onClick={()=>toggle(true)}><KeyRound className="size-4"/>Change Password</Button>

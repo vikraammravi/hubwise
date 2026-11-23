@@ -2,15 +2,18 @@ import { supabase } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/supabase/types";
 import type { BranchUserRole } from "@/features/users/domain";
 import { businessWorkspacesEnabled, WORKSPACE_CHANGED_EVENT } from "@/features/workspaces/context";
+import { businessApiHeaders } from "@/features/workspaces/fetch";
 
 export type NewBranchUser = {
   fullName: string; email: string; password: string; locationId: string; role: BranchUserRole;
 };
 
 async function accountRequest(path: string, method: "POST" | "DELETE" | "PATCH", body?: NewBranchUser | Pick<Profile, "full_name" | "phone" | "role" | "status" | "location_id">): Promise<void> {
+  const headers = businessApiHeaders(body ? { "Content-Type": "application/json" } : undefined);
   const response = await fetch(path, {
     method,
-    ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
+    ...(headers ? { headers } : {}),
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error ?? "Unable to update the account.");

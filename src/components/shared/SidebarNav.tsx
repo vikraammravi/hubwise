@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ComponentType } from "react";
 import { cn } from "@/lib/utils";
+import { useBusinessHref } from "@/features/workspaces/BusinessLink";
 
 export type NavItem = {
   label: string;
@@ -33,6 +34,7 @@ export function SidebarNav({
   className?: string;
 }) {
   const pathname = usePathname();
+  const businessHref = useBusinessHref();
 
   const initialOpen: Record<string, boolean> = {};
   entries.forEach((e) => {
@@ -47,12 +49,13 @@ export function SidebarNav({
     <nav className={cn("py-3 lg:py-2 px-2 text-sm", className)}>
       {entries.map((e) => {
         if (!isGroup(e)) {
-          const active = isActive(e.href);
+          const href = businessHref(e.href);
+          const active = isActive(href);
           const Icon = e.icon;
           return (
             <Link
               key={e.href}
-              href={e.href}
+              href={href}
               onClick={onNavigate}
               className={cn(
                 "flex min-h-11 lg:min-h-8 items-center gap-2.5 px-3 py-2 lg:py-1.5 rounded-lg text-[14px] transition-colors",
@@ -87,12 +90,13 @@ export function SidebarNav({
             {isOpen && (
               <div className="mt-0.5">
                 {e.items.map((it) => {
-                  const active = isActive(it.href);
+                  const href = businessHref(it.href);
+                  const active = isActive(href);
                   const Icon = it.icon;
                   return (
                     <Link
                       key={it.href}
-                      href={it.href}
+                      href={href}
                       onClick={onNavigate}
                       className={cn(
                         "flex min-h-11 lg:min-h-8 items-center gap-2.5 pl-6 pr-3 py-2 lg:py-1.5 rounded-lg text-[14px] transition-colors",

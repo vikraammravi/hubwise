@@ -16,7 +16,7 @@ import { supabase } from "@/lib/supabase/client";
 import { invoiceDateKey } from "@/features/billing/domain";
 import type { Order, OrderLine, Location, InvoiceEdit } from "@/lib/supabase/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import Link from "next/link";
+import { BusinessLink } from "@/features/workspaces/BusinessLink";
 import { InvoiceActions } from "@/features/billing/components/InvoiceActions";
 
 type InvoiceOrder = Order & { locations: Pick<Location, "name" | "address" | "city" | "province"> | null; pickup_requests: { return_status: string | null }[]; weekly_invoices: {sent_at:string|null;payment_status:string}|null };
@@ -76,7 +76,7 @@ export function InvoiceDetail({ orderId, isAdmin = false }: { orderId: string; i
     {isAdmin && order.pickup_approval_status === "PENDING" && <Banner tone="info">Review the pending pickup request in Branch Orders before editing this invoice.</Banner>}
     {isAdmin && canEdit && order.weekly_invoices?.payment_status === "PAID" && <Banner tone="info">This combined invoice is marked paid. Review its payment status after changing the invoice.</Banner>}
     {order.status !== "COMPLETED" && <Banner tone="info">This is a draft. Confirm physical pickup, review billing, then combine completed orders into a weekly invoice.</Banner>}
-    {order.weekly_invoice_id ? <Banner tone="info"><Link className="underline font-medium" href={`${isAdmin ? "/admin" : "/branch"}/invoices/weekly/${order.weekly_invoice_id}`}>Open Combined Weekly Invoice</Link></Banner> : <Banner tone="info">Review this individual order, then select completed orders in Invoices to create and send a combined weekly invoice.</Banner>}
+    {order.weekly_invoice_id ? <Banner tone="info"><BusinessLink className="underline font-medium" href={`${isAdmin ? "/admin" : "/branch"}/invoices/weekly/${order.weekly_invoice_id}`}>Open Combined Weekly Invoice</BusinessLink></Banner> : <Banner tone="info">Review this individual order, then select completed orders in Invoices to create and send a combined weekly invoice.</Banner>}
     <Dialog open={editing && canEdit} onOpenChange={setEditing}><DialogContent aria-describedby={undefined} className="sm:max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto"><DialogHeader><DialogTitle>Edit Invoice — INV-{order.order_number}</DialogTitle></DialogHeader>{editing && <InvoiceEditor key={`${order.id}-${order.invoice_revision}`} order={order} lines={lines} onCancel={() => setEditing(false)} onSaved={async () => { await load(); setEditing(false); }} />}</DialogContent></Dialog>
     <DataTable data={lines} columns={columns} rowKey={(line) => line.id} emptyTitle="No invoice items" />
     <InvoiceTotals subtotal={subtotal} tax={tax} total={total} />

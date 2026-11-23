@@ -28,10 +28,11 @@ import { formatMoney, formatDate, POLL_INTERVAL } from "@/lib/format";
 import { RecordCards } from "@/components/shared/RecordCards";
 import { useCompactLayout } from "@/lib/useCompactLayout";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { BusinessLink, useBusinessHref } from "@/features/workspaces/BusinessLink";
 
 export default function AdminOrdersPage() {
   const router = useRouter();
+  const businessHref = useBusinessHref();
   const compact=useCompactLayout();
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -44,7 +45,7 @@ export default function AdminOrdersPage() {
   async function updateStatus(id: string, status: OrderStatus) {
     setError(null);
     if (status === "COMPLETED") {
-      router.push(`/admin/orders/${id}?pickup=1`);
+      router.push(businessHref(`/admin/orders/${id}?pickup=1`));
       return;
     }
     try {
@@ -126,13 +127,13 @@ export default function AdminOrdersPage() {
         <p className="text-xs text-muted-foreground">Submitted: {formatDate(row.created_at)} · Pickup: {row.pickup_date ? formatDate(row.pickup_date) : "—"}</p>
         <dl className="grid grid-cols-2 gap-3 text-sm"><div><dt className="text-xs text-muted-foreground">Requested</dt><dd>{formatMoney(row.total_amount)}</dd></div><div><dt className="text-xs text-muted-foreground">Final</dt><dd>{formatMoney(row.final_total_amount)}</dd></div></dl>
         <div><p className="text-xs text-muted-foreground">Pickup Approval</p><PickupApprovalBadge requests={row.pickup_requests??[]}/></div>
-        <CardActions className="border-t pt-3">{statusControl(row)}<Button asChild variant="outline"><Link href={`/admin/orders/${row.id}`}>View Order</Link></Button></CardActions>
+        <CardActions className="border-t pt-3">{statusControl(row)}<Button asChild variant="outline"><BusinessLink href={`/admin/orders/${row.id}`}>View Order</BusinessLink></Button></CardActions>
       </>}</RecordCards>:<DataTable
         data={rows}
         columns={columns}
         loading={loading}
         rowKey={(r) => r.id}
-        onRowClick={(r) => router.push(`/admin/orders/${r.id}`)}
+        onRowClick={(r) => router.push(businessHref(`/admin/orders/${r.id}`))}
         emptyTitle="No branch orders yet"
       />}
       <Pagination page={data?.page ?? page} pageSize={PAGE_SIZE} count={data?.count ?? 0} busy={loading} onChange={setPage} />

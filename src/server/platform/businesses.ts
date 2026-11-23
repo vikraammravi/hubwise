@@ -2,6 +2,7 @@ import "server-only";
 import { hasSameOrigin } from "@/lib/request-origin";
 import { PlatformAccessError, platformSession } from "./access";
 import { validBusinessId } from "@/features/workspaces/context";
+import { businessAddressIsReserved, hasBusinessSlugFormat } from "@/features/workspaces/business-address";
 
 const headers = { "Cache-Control": "private, no-store" };
 function failure(error: unknown) {
@@ -32,7 +33,8 @@ async function requestBody(request: Request): Promise<Record<string, unknown>> {
 type InvitationSummary = { business_id: string; name: string; email: string; state: string; created_at: string; expires_at: string; completed_at: string | null };
 // Latest invitation per business, without secrets. Optional: the directory still loads if it is unavailable.
 async function invitationSummaries(session: Awaited<ReturnType<typeof platformSession>>, businessIds: string[]): Promise<Map<string, InvitationSummary> | null> {
-  if (process.env.PLATFORM_BUSINESS_REGISTRATION_ENABLED !== "true" || process.env.PLATFORM_OWNER_INVITATIONS_ENABLED !== "true" || !businessIds.length) return new Map();
+  const invitationsEnabled = process.env.PLATFORM_BUSINESS_REGISTRATION_ENABLED === "true" && process.env.PLATFORM_OWNER_INVITATIONS_ENABLED === "true";
+  if (!businessIds.length || (!invitationsEnabled && process.env.PLATFORM_BUSINESS_LIFECYCLE_ENABLED !== "true")) return new Map();
   try {
     const result = await session.rpc("platform_owner_invitation_summary", { p_business_ids: businessIds });
     if (result.error || !Array.isArray(result.data)) return null;
@@ -71,7 +73,8 @@ export async function createBusiness(request: Request) {
     const values = await requestBody(request);
     const name = typeof values.name === "string" ? values.name.trim() : "";
     const slug = typeof values.slug === "string" ? values.slug.trim() : "";
-    if (!name || name.length > 200 || slug.length < 2 || slug.length > 60 || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) throw new PlatformAccessError("Enter a business name and a lowercase address using letters, numbers and hyphens.", 400);
+    if (businessAddressIsReserved(slug)) throw new PlatformAccessError("That business address is reserved. Choose a different address.", 400);
+    if (!name || name.length > 200 || !hasBusinessSlugFormat(slug)) throw new PlatformAccessError("Enter a business name and a lowercase address using letters, numbers and hyphens.", 400);
     const result = await session.rpc("platform_create_business", { p_name: name, p_slug: slug });
     if (result.error) {
       if (result.error.code === "23505") throw new PlatformAccessError("That business address is already in use.", 409);
@@ -116,5 +119,44 @@ export async function activateBusiness(request: Request, context: { params: Prom
       throw result.error;
     }
     return Response.json({ business: result.data }, { headers });
+  } catch (error) { return failure(error); }
+}
+
+async function lifecycleRequest(request: Request, context: { params: Promise<{ id: string }> }) {
+  if (!hasSameOrigin(request)) throw new PlatformAccessError("Request not allowed.", 403);
+  const session = await platformSession();
+  if (process.env.PLATFORM_BUSINESS_LIFECYCLE_ENABLED !== "true") {
+    throw new PlatformAccessError("Business lifecycle changes are not enabled here.", 409);
+  }
+  const { id } = await context.params;
+  if (!validBusinessId(id)) throw new PlatformAccessError("Choose a valid business.", 400);
+  return { session, id };
+}
+
+function checkLifecycleResult(error: { code: string } | null, conflict: string) {
+  if (!error) return;
+  if (error.code === "42501") throw new PlatformAccessError("You cannot change this business.", 403);
+  if (error.code === "P0002") throw new PlatformAccessError("Business not found.", 404);
+  if (error.code === "55000" || error.code === "23503") throw new PlatformAccessError(conflict, 409);
+  throw error;
+}
+
+export async function deleteBusiness(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { session, id } = await lifecycleRequest(request, context);
+    const { error } = await session.rpc("platform_delete_business", { p_business_id: id });
+    checkLifecycleResult(error, "Only an empty business in setup can be deleted. This business may already have members, invitation history, branding or records.");
+    return Response.json({ deleted: true }, { headers });
+  } catch (error) { return failure(error); }
+}
+
+export async function setBusinessAccess(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { session, id } = await lifecycleRequest(request, context);
+    const { action } = await requestBody(request);
+    if (action !== "suspend" && action !== "restore") throw new PlatformAccessError("Choose suspend or restore.", 400);
+    const { error } = await session.rpc("platform_set_business_access", { p_business_id: id, p_suspended: action === "suspend" });
+    checkLifecycleResult(error, action === "suspend" ? "Only an active, isolated business can be suspended." : "Only a suspended, isolated business with an active admin can be restored.");
+    return Response.json({ status: action === "suspend" ? "suspended" : "active" }, { headers });
   } catch (error) { return failure(error); }
 }

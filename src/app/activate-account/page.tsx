@@ -63,7 +63,7 @@ export default function ActivateAccountPage() {
 
         <div className="text-center text-xs text-muted-foreground">
           Not you?{" "}
-          <Link href="/login" className="text-saffron-hover font-medium">
+          <Link href="/login?next=/admin" className="text-saffron-hover font-medium">
             Sign in
           </Link>
         </div>
