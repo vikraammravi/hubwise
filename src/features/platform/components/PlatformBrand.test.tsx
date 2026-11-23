@@ -4,8 +4,8 @@ import { PLATFORM_CONSOLE_TITLE, PLATFORM_NAME } from "../brand";
 import { PlatformBrand } from "./PlatformBrand";
 
 it("uses a platform identity that is not Ahaa branding", () => {
-  expect(PLATFORM_NAME).toBe("Kitchen Ops Cloud");
-  expect(PLATFORM_CONSOLE_TITLE).toBe("Kitchen Ops Cloud · Admin");
+  expect(PLATFORM_NAME).toBe("Hubwise");
+  expect(PLATFORM_CONSOLE_TITLE).toBe("Hubwise · Admin");
   expect(`${PLATFORM_NAME} ${PLATFORM_CONSOLE_TITLE}`).not.toMatch(/ahaa|aaha|truly south/i);
 });
 

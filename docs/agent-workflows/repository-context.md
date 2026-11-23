@@ -64,3 +64,7 @@ Hosted AI scanning is now enabled in Production and only the staging Preview bra
 ## Deployment topology — November 20, 2026
 
 The superadmin/operations console deploys only from the `platform` branch (Vercel project `operations-platform-admin`, staging Supabase); Ahaa deploys from `main` (production) and the ahaa-central project skips `platform` builds. `staging.aahastore.com` was removed from Vercel (DNS record at the registrar still to delete). Commit `2049952` is live on the operations console; `main`/`staging` remain at `41a301c`. See `docs/environments.md`. Older references to a hosted `staging.aahastore.com` are historical.
+
+## Product naming — November 23, 2026
+
+The product is **Hubwise**, a hub-and-branch operations SaaS (not restaurant-only). Ahaa (Aaha Truly South) is its first client, not the product. Platform identity lives in `src/features/platform/brand.ts` (`PLATFORM_NAME`); the package is `hubwise`; the business app's default page title is Hubwise. Ahaa keeps its own logo and warm palette through its branding settings, and `src/components/shared/Logo.tsx` remains Ahaa's logo. The GitHub repository is being renamed from `ahaa-central` to `hubwise` (GitHub redirects the old URL; Vercel projects follow the rename). The planned business-app Vercel project for all clients is `hubwise`, alongside `operations-platform-admin`; the existing `ahaa-central` Vercel project keeps serving www.aahastore.com until Ahaa moves to the shared deployment.

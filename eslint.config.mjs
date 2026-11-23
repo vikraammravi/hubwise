@@ -21,6 +21,7 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     ".next-platform/**",
+    ".next-business/**",
     ".local-backups/**",
     "out/**",
     "build/**",

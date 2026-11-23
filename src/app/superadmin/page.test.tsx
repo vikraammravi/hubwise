@@ -20,9 +20,9 @@ beforeEach(() => {
 });
 
 it("passes each capability flag to the console only when explicitly enabled", async () => {
-  expect(await consoleProps()).toEqual({ registrationEnabled: false, ownerAssignmentEnabled: false, invitationsEnabled: false, activationEnabled: false, businessAppOrigin: "https://business.example" });
-  for (const flag of ["PLATFORM_BUSINESS_REGISTRATION_ENABLED", "PLATFORM_OWNER_ASSIGNMENT_ENABLED", "PLATFORM_OWNER_INVITATIONS_ENABLED", "PLATFORM_BUSINESS_ACTIVATION_ENABLED"]) vi.stubEnv(flag, "true");
-  expect(await consoleProps()).toEqual(expect.objectContaining({ registrationEnabled: true, ownerAssignmentEnabled: true, invitationsEnabled: true, activationEnabled: true }));
+  expect(await consoleProps()).toEqual({ registrationEnabled: false, ownerAssignmentEnabled: false, invitationsEnabled: false, activationEnabled: false, lifecycleEnabled: false, businessAppOrigin: "https://business.example" });
+  for (const flag of ["PLATFORM_BUSINESS_REGISTRATION_ENABLED", "PLATFORM_OWNER_ASSIGNMENT_ENABLED", "PLATFORM_OWNER_INVITATIONS_ENABLED", "PLATFORM_BUSINESS_ACTIVATION_ENABLED", "PLATFORM_BUSINESS_LIFECYCLE_ENABLED"]) vi.stubEnv(flag, "true");
+  expect(await consoleProps()).toEqual(expect.objectContaining({ registrationEnabled: true, ownerAssignmentEnabled: true, invitationsEnabled: true, activationEnabled: true, lifecycleEnabled: true }));
 });
 
 it.each([

@@ -52,9 +52,9 @@ const panel = (name: string) => screen.getByRole("region", { name });
 it("opens on the platform-branded overview with registration unavailable by default", async () => {
   render(<PlatformConsole />);
   expect(await screen.findByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
-  expect(screen.getAllByText("Kitchen Ops Cloud").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Hubwise").length).toBeGreaterThan(0);
   const sidebar = screen.getByRole("complementary");
-  expect(within(sidebar).getByText("Kitchen Ops Cloud")).toBeInTheDocument();
+  expect(within(sidebar).getByText("Hubwise")).toBeInTheDocument();
   expect(sidebar.textContent).not.toMatch(/Ahaa|Aaha/);
   expect(navButton("Overview")).toHaveAttribute("aria-current", "page");
   expect(navButton("Businesses")).not.toHaveAttribute("aria-current");

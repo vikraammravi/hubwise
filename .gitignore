@@ -18,6 +18,7 @@
 # next.js
 /.next/
 /.next-platform/
+/.next-business/
 /out/
 
 # production

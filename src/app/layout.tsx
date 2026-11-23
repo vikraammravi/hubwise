@@ -3,7 +3,7 @@ import { Inter, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { ConfirmationHost } from "@/components/shared/ConfirmationHost";
 import { platformDeployment } from "@/lib/app-surface";
-import { PLATFORM_CONSOLE_TITLE } from "@/features/platform/brand";
+import { PLATFORM_CONSOLE_TITLE, PLATFORM_NAME } from "@/features/platform/brand";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,8 +20,8 @@ const serif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: platformDeployment() ? PLATFORM_CONSOLE_TITLE : "Aaha Central",
-  description: platformDeployment() ? "Business platform administration" : "Central Kitchen operations for Aaha branches",
+  title: platformDeployment() ? PLATFORM_CONSOLE_TITLE : PLATFORM_NAME,
+  description: platformDeployment() ? `${PLATFORM_NAME} platform administration` : `${PLATFORM_NAME}: hub-and-branch inventory and operations`,
   robots: {
     index: false,
     follow: false,

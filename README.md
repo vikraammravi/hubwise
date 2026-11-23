@@ -1,6 +1,12 @@
-# Aaha Central
+# Hubwise
 
-Central Kitchen operations platform for [Aaha Truly South](https://aahatrulysouth.com/) — connecting the central kitchen admin team with every branch.
+Hub-and-branch operations SaaS: a central hub (kitchen, bakery, warehouse) supplies its branches — internal ordering, preparation and pickup, central and branch inventory, internal invoicing, catering and vendor-invoice scanning. Each client business is isolated in a shared database by `business_id` and gets its own branding and sign-in address.
+
+**Clients:** [Aaha Truly South](https://aahatrulysouth.com/) (first client, www.aahastore.com).
+
+**Surfaces:** the business app (one per environment, all clients) and the **Hubwise superadmin console** (`APP_SURFACE=platform`) for onboarding and managing clients. See `docs/release-process.md` and `docs/environments.md`.
+
+> Historical notes below were written when this codebase served Ahaa only ("Aaha Central").
 
 ## Stack
 
