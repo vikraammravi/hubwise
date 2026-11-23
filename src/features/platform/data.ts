@@ -1,6 +1,7 @@
 export type OwnerInvitationState = "issued" | "processing" | "completed" | "revoked";
 export type OwnerInvitation = { name: string; email: string; state: OwnerInvitationState; created_at: string; expires_at: string; completed_at: string | null };
-export type PlatformBusiness = { id: string; name: string; slug: string; status: "provisioning" | "active" | "suspended"; isolation_ready: boolean; owner_assigned: boolean; created_at: string; invitation?: OwnerInvitation | null };
+export type BusinessBranding = { display_name: string | null; accent: string | null; logo_url: string | null };
+export type PlatformBusiness = { id: string; name: string; slug: string; status: "provisioning" | "active" | "suspended"; isolation_ready: boolean; owner_assigned: boolean; created_at: string; invitation?: OwnerInvitation | null; branding?: BusinessBranding | null };
 export type PlatformDirectory = { businesses: PlatformBusiness[]; invitationsUnavailable: boolean };
 
 async function send<T>(url: string, init: RequestInit, fallback: string): Promise<T> {
@@ -30,6 +31,16 @@ export async function inviteBusinessOwner(businessId: string, name: string, emai
 }
 export async function revokeBusinessInvitation(businessId: string): Promise<void> {
   await send(`${businessPath(businessId)}/owner/invite`, { method: "DELETE" }, "Unable to revoke the invitation.");
+}
+
+export async function updateBusinessBranding(businessId: string, values: { displayName: string; accent: string; logoUrl: string }): Promise<void> {
+  await send(`${businessPath(businessId)}/branding`, { method: "PATCH", headers: json, body: JSON.stringify(values) }, "Unable to save branding.");
+}
+export async function uploadBusinessLogo(businessId: string, file: File): Promise<string> {
+  const form = new FormData();
+  form.append("logo", file);
+  const result = await send<{ logoUrl: string }>(`${businessPath(businessId)}/branding/logo`, { method: "POST", body: form }, "Unable to upload the logo.");
+  return result.logoUrl;
 }
 
 export async function resolveBusinessInvitation(businessId: string): Promise<"completed" | "revoked"> {

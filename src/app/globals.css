@@ -151,7 +151,8 @@ h1, h2, .heading-tight {
  * Platform (superadmin) surface: its own neutral SaaS palette, applied only when
  * APP_SURFACE=platform (class set on <html> in the root layout). Ahaa is unaffected.
  */
-.platform-surface {
+.platform-surface,
+.neutral-surface {
   --background: #F6F7F9;
   --surface: #FFFFFF;
   --surface-warm: #FFFFFF;

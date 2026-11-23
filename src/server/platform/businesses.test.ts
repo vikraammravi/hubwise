@@ -200,3 +200,23 @@ it("no longer offers temporary-password owner creation", () => {
   expect(businessModule).not.toHaveProperty("createInitialOwner");
   expect(existsSync("src/app/api/platform/businesses/[id]/owner/new/route.ts")).toBe(false);
 });
+it("returns only the presentation branding fields and never other settings", async () => {
+  db.from.mockReturnValue(queryResult([
+    { ...directoryRow, settings: { branding: { display_name: "Spice Route", accent: "#0ea5e9", logo_url: "https://cdn.example.invalid/logo.png", internal: "private-branding" }, billing: { plan: "private-plan" }, smtp_password: "private-secret" } },
+    { ...directoryRow, id: businessId, slug: "other", settings: { branding: { display_name: 42, accent: null } } },
+    { ...directoryRow, id: "8a0d5b0e-4f0c-4b8e-9d8f-111111111111", slug: "third", settings: null },
+    { ...directoryRow, id: "8a0d5b0e-4f0c-4b8e-9d8f-222222222222", slug: "fourth", settings: ["branding"] },
+  ]));
+  const response = await listBusinesses();
+  const text = await response.text();
+  const result = JSON.parse(text);
+  expect(db.from.mock.results[0].value.select).toHaveBeenCalledWith(expect.stringContaining("settings"));
+  expect(result.businesses.map((business: { branding: unknown }) => business.branding)).toEqual([
+    { display_name: "Spice Route", accent: "#0ea5e9", logo_url: "https://cdn.example.invalid/logo.png" },
+    { display_name: null, accent: null, logo_url: null },
+    { display_name: null, accent: null, logo_url: null },
+    { display_name: null, accent: null, logo_url: null },
+  ]);
+  for (const business of result.businesses) expect(business).not.toHaveProperty("settings");
+  expect(text).not.toContain("private");
+});

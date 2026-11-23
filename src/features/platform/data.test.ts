@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { acceptedInvitation, businessWithInvitation, expiredInvitation, ownerAssignedBusiness, pendingInvitation, platformBusinesses, reviewInvitation, revokedInvitation } from "@tests/mocks/platform";
-import { attentionItems, fetchBusinesses, invitationStatus, inviteBusinessOwner, resolveBusinessInvitation, revokeBusinessInvitation } from "./data";
+import { attentionItems, fetchBusinesses, invitationStatus, inviteBusinessOwner, resolveBusinessInvitation, revokeBusinessInvitation, updateBusinessBranding, uploadBusinessLogo } from "./data";
+import { brandingInput, logoFile, pngBytes, uploadedLogoUrl } from "@tests/mocks/platform-branding";
 
 const fetchMock = vi.fn();
 beforeEach(() => { vi.stubGlobal("fetch", fetchMock); });
@@ -110,4 +111,26 @@ it("keeps only ready items when invitation status is unknown", () => {
     { ...ownerAssignedBusiness, id: "4", name: "Ready" },
   ];
   expect(reasons(attentionItems(businesses, now, true))).toEqual([["Ready", "ready"]]);
+});
+
+it("saves branding with PATCH JSON on the encoded business path", async () => {
+  reply(true, { branding: {} });
+  await updateBusinessBranding("a/b", brandingInput);
+  expect(fetchMock).toHaveBeenCalledWith("/api/platform/businesses/a%2Fb/branding", expect.objectContaining({ method: "PATCH", cache: "no-store", body: JSON.stringify(brandingInput), headers: { "Content-Type": "application/json" } }));
+  reply(false, { error: "Choose a colour like #4F46E5." });
+  await expect(updateBusinessBranding("b", brandingInput)).rejects.toThrow("Choose a colour like #4F46E5.");
+});
+
+it("uploads a logo as multipart form data and returns its URL", async () => {
+  const file = logoFile(pngBytes);
+  reply(true, { logoUrl: uploadedLogoUrl });
+  expect(await uploadBusinessLogo("b", file)).toBe(uploadedLogoUrl);
+  const [url, init] = fetchMock.mock.calls[0];
+  expect(url).toBe("/api/platform/businesses/b/branding/logo");
+  expect(init.method).toBe("POST");
+  expect(init.headers).toBeUndefined();
+  expect(init.body).toBeInstanceOf(FormData);
+  expect((init.body as FormData).get("logo")).toBe(file);
+  reply(false, {});
+  await expect(uploadBusinessLogo("b", file)).rejects.toThrow("Unable to upload the logo.");
 });

@@ -35,3 +35,7 @@ The subsequent local preview passed 23 focused tests, TypeScript and scoped lint
 ## Routes
 
 Platform entry is `/superadmin`; sign-in preserves that destination. With workspace mode enabled, `/b/<slug>` provides an authenticated business-entry link and verifies membership before selecting the workspace. The role routes and workspace chooser remain shared. This is not a custom-domain binding or hostname isolation.
+
+## Per-business sign-in branding (November 22, 2026)
+
+Each business has a display name, accent colour and logo in `businesses.settings->'branding'`, edited by the superadmin from the console (Branding action; logo upload PNG/JPEG/WebP ≤ 512 KB to the public `business-branding` bucket via the platform server route). The business sign-in reached through `/b/<slug>` shows only that business's brand on a neutral palette (`neutral-surface`); unknown or inactive businesses show no logo; plain `/login` on aahastore.com is unchanged. Public lookup `business_login_branding(slug)` returns name/accent/logo only for active, isolated businesses. Logos must be https URLs or site paths (protocol-relative `//host` rejected). Migrations `202611220001_business_branding.sql` and `202611220002_business_branding_site_path.sql` are installed on staging only (schema backup first; `supabase/tests/business_branding.sql` passes against the installed functions). Ahaa's branding is set to its existing logo and saffron. Not yet done: branding inside the signed-in app shell and default theme.

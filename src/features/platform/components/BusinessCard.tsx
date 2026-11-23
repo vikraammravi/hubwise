@@ -1,5 +1,5 @@
 "use client";
-import { Check } from "lucide-react";
+import { Check, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
@@ -17,6 +17,8 @@ export type BusinessActions = {
   onRevoke: (business: PlatformBusiness) => void;
   onActivate: (business: PlatformBusiness) => void;
   onResolve: (business: PlatformBusiness) => void;
+  /** Present when branding may be edited (business setup enabled). */
+  onBranding?: (business: PlatformBusiness) => void;
 };
 
 const BUSINESS_STATUS: Record<PlatformBusiness["status"], { label: string; className: string; dot: string }> = {
@@ -101,6 +103,7 @@ export function BusinessCard({ business, actions }: { business: PlatformBusiness
         <Button size="sm" variant="outline" onClick={() => actions.onReissue(business)}>Reissue link</Button>
         <Button size="sm" variant="ghost" className="text-red-700 hover:bg-red-50 hover:text-red-800" onClick={() => actions.onRevoke(business)}>Revoke</Button>
       </>}
+      {actions.onBranding && <Button size="sm" variant="ghost" onClick={() => actions.onBranding!(business)}><Palette className="size-4" />Branding</Button>}
       {business.status === "active" && business.isolation_ready && actions.businessAppOrigin && <Button asChild size="sm" variant="outline">
         <a href={`${actions.businessAppOrigin}/b/${encodeURIComponent(business.slug)}`}>Open business sign-in</a>
       </Button>}

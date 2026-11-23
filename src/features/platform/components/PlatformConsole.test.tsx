@@ -5,12 +5,12 @@ import {
   acceptedInvitation, businessWithInvitation, directory, exampleInvitation, expiredInvitation, ownerAssignedBusiness,
   pendingInvitation, platformBusinesses, reviewInvitation, revokedInvitation,
 } from "@tests/mocks/platform";
-import { activateBusiness, assignBusinessOwner, fetchBusinesses, inviteBusinessOwner, registerBusiness, resolveBusinessInvitation, revokeBusinessInvitation, type PlatformBusiness } from "../data";
+import { activateBusiness, assignBusinessOwner, fetchBusinesses, inviteBusinessOwner, registerBusiness, resolveBusinessInvitation, revokeBusinessInvitation, updateBusinessBranding, type PlatformBusiness } from "../data";
 import PlatformConsole from "./PlatformConsole";
 
 vi.mock("../data", async importOriginal => {
   const actual = await importOriginal<typeof import("../data")>();
-  return { ...actual, fetchBusinesses: vi.fn(), registerBusiness: vi.fn(), assignBusinessOwner: vi.fn(), inviteBusinessOwner: vi.fn(), activateBusiness: vi.fn(), revokeBusinessInvitation: vi.fn(), resolveBusinessInvitation: vi.fn() };
+  return { ...actual, fetchBusinesses: vi.fn(), registerBusiness: vi.fn(), assignBusinessOwner: vi.fn(), inviteBusinessOwner: vi.fn(), activateBusiness: vi.fn(), revokeBusinessInvitation: vi.fn(), resolveBusinessInvitation: vi.fn(), updateBusinessBranding: vi.fn(), uploadBusinessLogo: vi.fn() };
 });
 vi.mock("@/components/shared/SignOutButton", () => ({ SignOutButton: () => <button>Sign out</button> }));
 
@@ -23,6 +23,7 @@ beforeEach(() => {
   vi.mocked(activateBusiness).mockResolvedValue();
   vi.mocked(revokeBusinessInvitation).mockResolvedValue();
   vi.mocked(resolveBusinessInvitation).mockResolvedValue("revoked");
+  vi.mocked(updateBusinessBranding).mockResolvedValue();
 });
 const showing = (...businesses: PlatformBusiness[]) => vi.mocked(fetchBusinesses).mockResolvedValue(directory(businesses));
 const row = async (name = "Example Business") => (await screen.findByRole("heading", { name })).closest("li")!;
@@ -567,4 +568,26 @@ it("shows platform navigation while admin setup remains independently disabled",
   expect(screen.getByRole("button", { name: "Add business" })).toBeInTheDocument();
   await screen.findByText("Example Business");
   expect(screen.queryByRole("button", { name: /first admin/ })).not.toBeInTheDocument();
+});
+
+it("offers branding on every directory row only when registration is enabled", async () => {
+  const { unmount } = renderDirectory(<PlatformConsole />);
+  await row();
+  expect(screen.queryByRole("button", { name: "Branding" })).not.toBeInTheDocument();
+  unmount();
+  renderDirectory(<PlatformConsole registrationEnabled />);
+  expect(within(await row()).getByRole("button", { name: "Branding" })).toBeInTheDocument();
+  expect(within(await row("Ahaa")).getByRole("button", { name: "Branding" })).toBeInTheDocument();
+});
+
+it("saves branding from a directory row, then confirms and refreshes", async () => {
+  renderDirectory(<PlatformConsole registrationEnabled />);
+  fireEvent.click(within(await row()).getByRole("button", { name: "Branding" }));
+  const dialog = screen.getByRole("dialog", { name: "Branding" });
+  fireEvent.change(within(dialog).getByLabelText("Display name"), { target: { value: "Spice Route" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save branding" }));
+  await waitFor(() => expect(updateBusinessBranding).toHaveBeenCalledWith("b", { displayName: "Spice Route", accent: "", logoUrl: "" }));
+  expect(await screen.findByText("Branding saved for Example Business. Its sign-in page now uses it.")).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  await waitFor(() => expect(fetchBusinesses).toHaveBeenCalledTimes(2));
 });

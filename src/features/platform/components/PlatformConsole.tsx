@@ -14,6 +14,7 @@ import { BusinessCard, StatusPill, type BusinessActions } from "./BusinessCard";
 import { InitialAdminDialog, type AdminDialogRequest } from "./InitialAdminDialog";
 import { PlatformBrand } from "./PlatformBrand";
 import { RegisterBusinessDialog } from "./RegisterBusinessDialog";
+import { BrandingDialog } from "./BrandingDialog";
 
 type Flags = { registrationEnabled?: boolean; ownerAssignmentEnabled?: boolean; invitationsEnabled?: boolean; activationEnabled?: boolean; businessAppOrigin?: string | null };
 type View = "overview" | "businesses";
@@ -71,6 +72,7 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
   const [activating, setActivating] = useState<PlatformBusiness | null>(null);
   const [revoking, setRevoking] = useState<PlatformBusiness | null>(null);
   const [resolving, setResolving] = useState<PlatformBusiness | null>(null);
+  const [branding, setBranding] = useState<PlatformBusiness | null>(null);
 
   const actions: BusinessActions = {
     inviteEnabled: registrationEnabled && invitationsEnabled,
@@ -83,6 +85,7 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
     onRevoke: business => setRevoking(business),
     onActivate: business => setActivating(business),
     onResolve: business => setResolving(business),
+    onBranding: registrationEnabled ? business => setBranding(business) : undefined,
   };
 
   const attention = useMemo(() => attentionItems(businesses ?? [], undefined, statusUnknown), [businesses, statusUnknown]);
@@ -251,6 +254,7 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
       description={activating ? `Activate ${activating.name} so its admin can sign in and set up the business.` : undefined} confirmLabel="Activate" tone="default" onConfirm={activate} />
     <ConfirmDialog open={revoking !== null} onOpenChange={open => { if (!open) setRevoking(null); }} title="Revoke invitation"
       description={revoking?.invitation && invitationStatus(revoking.invitation) === "pending" ? `The link sent to ${revoking.invitation.email} will stop working. You can issue a new one afterwards.` : undefined} confirmLabel="Revoke" onConfirm={revoke} />
+    <BrandingDialog business={branding} onClose={() => setBranding(null)} onSaved={() => { const name = branding?.name; setBranding(null); setNotice(`Branding saved for ${name}. Its sign-in page now uses it.`); void list.refresh(true); }} />
     <ConfirmDialog open={resolving !== null} onOpenChange={open => { if (!open) setResolving(null); }} title="Resolve interrupted setup"
       description={resolving?.invitation ? `If ${resolving.invitation.email} already created their login, their admin setup is finished. Otherwise the invitation is cancelled and you can issue a new link.` : undefined} confirmLabel="Resolve" tone="default" onConfirm={resolve} />
   </div>;

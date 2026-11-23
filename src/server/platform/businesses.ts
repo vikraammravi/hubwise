@@ -39,16 +39,23 @@ async function invitationSummaries(session: Awaited<ReturnType<typeof platformSe
     return new Map((result.data as InvitationSummary[]).map(row => [row.business_id, row]));
   } catch { return null; }
 }
+// Only the presentation fields leave the server; other settings stay private.
+function brandingOf(settings: unknown): { display_name: string | null; accent: string | null; logo_url: string | null } {
+  const branding = settings && typeof settings === "object" && !Array.isArray(settings) ? (settings as Record<string, unknown>).branding : null;
+  const value = (key: string) => branding && typeof branding === "object" && typeof (branding as Record<string, unknown>)[key] === "string" ? (branding as Record<string, string>)[key] : null;
+  return { display_name: value("display_name"), accent: value("accent"), logo_url: value("logo_url") };
+}
 export async function listBusinesses() {
   try {
     const session = await platformSession();
-    const { data, error } = await session.from("businesses").select("id,name,slug,status,isolation_ready,created_at,business_memberships(role)").order("name").limit(100);
+    const { data, error } = await session.from("businesses").select("id,name,slug,status,isolation_ready,created_at,settings,business_memberships(role)").order("name").limit(100);
     if (error) throw error;
     const invitations = await invitationSummaries(session, (data ?? []).map(business => business.id));
-    const businesses = (data ?? []).map(({ business_memberships, ...business }) => {
+    const businesses = (data ?? []).map(({ business_memberships, settings, ...business }) => {
       const invitation = invitations?.get(business.id);
       return {
         ...business,
+        branding: brandingOf(settings),
         owner_assigned: Array.isArray(business_memberships) && business_memberships.some(member => member.role === "CENTRAL_ADMIN"),
         invitation: invitation ? { name: invitation.name, email: invitation.email, state: invitation.state, created_at: invitation.created_at, expires_at: invitation.expires_at, completed_at: invitation.completed_at } : null,
       };

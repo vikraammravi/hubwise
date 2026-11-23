@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState, FormEvent } from "react";
+import { Suspense, useCallback, useEffect, useState, FormEvent } from "react";
+import { BusinessMark } from "@/components/shared/BusinessMark";
+import { useAsyncData } from "@/lib/useAsyncData";
+import { fetchLoginBranding } from "@/features/workspaces/branding";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { PlatformBrand } from "@/features/platform/components/PlatformBrand";
 import { PLATFORM_NAME } from "@/features/platform/brand";
@@ -29,6 +32,15 @@ function LoginInner() {
   const activated = params.get("activated") === "1";
   const reset = params.get("reset") === "1";
   const next = params.get("next");
+  const platformSignIn = next === "/superadmin";
+  // Arriving through /b/<slug>: show that business's own brand, never Ahaa's.
+  const businessSlug = !platformSignIn && businessWorkspacesEnabled() ? businessEntrySlug(next) : null;
+  const loadBranding = useCallback((signal: AbortSignal) => fetchLoginBranding(businessSlug ?? "", signal), [businessSlug]);
+  const branding = useAsyncData(loadBranding, { enabled: businessSlug !== null, refreshOnFocus: false });
+  const businessBrand = businessSlug ? branding.data ?? null : null;
+  useEffect(() => {
+    if (businessSlug) document.title = businessBrand ? `Sign in · ${businessBrand.name}` : "Sign in";
+  }, [businessSlug, businessBrand]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -65,10 +77,13 @@ function LoginInner() {
 
   return (
     <AuthShell
-      title={next === "/superadmin" ? "Superadmin sign in" : "Welcome back"}
-      subtitle={next === "/superadmin" ? "Sign in to manage businesses on the platform." : "Sign in to keep the kitchen moving."}
-      brand={next === "/superadmin" ? <PlatformBrand subtitle="Platform admin" /> : undefined}
-      brandName={next === "/superadmin" ? PLATFORM_NAME : undefined}
+      title={platformSignIn ? "Superadmin sign in" : "Welcome back"}
+      subtitle={platformSignIn ? "Sign in to manage businesses on the platform." : businessBrand ? `Sign in to ${businessBrand.name}.` : "Sign in to keep the kitchen moving."}
+      showBrand={!businessSlug || businessBrand !== null}
+      brand={platformSignIn ? <PlatformBrand subtitle="Platform admin" /> : businessBrand ? <BusinessMark name={businessBrand.name} logoUrl={businessBrand.logoUrl} accent={businessBrand.accent} size="lg" /> : undefined}
+      brandName={platformSignIn ? PLATFORM_NAME : businessSlug ? (businessBrand?.name ?? "") : undefined}
+      accent={businessBrand?.accent}
+      neutral={businessSlug !== null}
     >
       {(activated || reset) && (
         <Banner tone="success" className="mb-4">
@@ -93,7 +108,7 @@ function LoginInner() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder={next === "/superadmin" ? "you@company.com" : "you@aaha.com"}
+            placeholder={platformSignIn || businessSlug ? "you@company.com" : "you@aaha.com"}
             required
             autoComplete="email"
           />
