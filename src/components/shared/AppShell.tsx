@@ -7,7 +7,8 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SidebarNav, type NavEntry, type NavItem } from "./SidebarNav";
-import { Logo } from "./Logo";
+import { WorkspaceBrand, useWorkspaceBranding, useWorkspaceTheme } from "./WorkspaceBrand";
+import type { LoginBranding } from "@/features/workspaces/branding";
 import { SignOutButton } from "./SignOutButton";
 
 export type ShellUser = {
@@ -21,18 +22,20 @@ function Sidebar({
   footerEntries,
   user,
   brandHref,
+  branding,
   onNavigate,
 }: {
   entries: NavEntry[];
   footerEntries?: NavEntry[];
   user: ShellUser;
   brandHref: string;
+  branding: LoginBranding | null;
   onNavigate?: () => void;
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
       <div className="shrink-0 px-5 py-5 lg:py-3 border-b border-sidebar-border">
-        <Logo variant="full" size="md" href={brandHref} priority />
+        <WorkspaceBrand branding={branding} size="md" href={brandHref} />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:thin]">
         <SidebarNav entries={entries} onNavigate={onNavigate} />
@@ -74,12 +77,14 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const branding = useWorkspaceBranding();
+  useWorkspaceTheme(branding);
   const profileEntry=footerEntries?.find((entry):entry is NavItem=>"href" in entry&&entry.href.endsWith("/profile"));
 
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden lg:block w-64 shrink-0 h-dvh sticky top-0 border-r border-sidebar-border">
-        <Sidebar entries={entries} footerEntries={footerEntries} user={user} brandHref={brandHref} />
+        <Sidebar entries={entries} footerEntries={footerEntries} user={user} brandHref={brandHref} branding={branding} />
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
@@ -97,11 +102,12 @@ export function AppShell({
                 footerEntries={footerEntries}
                 user={user}
                 brandHref={brandHref}
+                branding={branding}
                 onNavigate={() => setOpen(false)}
               />
             </SheetContent>
           </Sheet>}
-          <Logo variant="full" size="sm" href={brandHref} priority />
+          <WorkspaceBrand branding={branding} size="sm" href={brandHref} />
           {mobileNav&&<div className="ml-auto flex items-center gap-2">{profileEntry&&<Button variant="ghost" size="icon" asChild><Link href={profileEntry.href} aria-label="My Profile"><Avatar className="size-8"><AvatarFallback className="text-xs">{user.initials}</AvatarFallback></Avatar></Link></Button>}<SignOutButton variant="icon"/></div>}
         </header>
 

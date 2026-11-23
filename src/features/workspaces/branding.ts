@@ -1,6 +1,20 @@
 import { supabase } from "@/lib/supabase/client";
 
-export type LoginBranding = { name: string; accent: string | null; logoUrl: string | null };
+export type BrandPalette = "warm" | "neutral";
+export type LoginBranding = { name: string; accent: string | null; logoUrl: string | null; palette: BrandPalette };
+
+/** "warm" keeps the original Ahaa look; anything else is the neutral theme with the business's own brand. */
+export function brandPalette(value: unknown): BrandPalette {
+  return value === "warm" ? "warm" : "neutral";
+}
+
+/** Signed-in branding from the current workspace's business settings. */
+export function businessBranding(business: { name: string; settings: Record<string, unknown> }): LoginBranding {
+  const raw = business.settings.branding;
+  const branding = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+  const displayName = typeof branding.display_name === "string" ? branding.display_name.trim() : "";
+  return { name: displayName || business.name, accent: safeAccent(branding.accent), logoUrl: safeLogoUrl(branding.logo_url), palette: brandPalette(branding.palette) };
+}
 
 /** Only #RRGGBB colours are used for styling. */
 export function safeAccent(value: unknown): string | null {
@@ -19,7 +33,7 @@ export function safeLogoUrl(value: unknown): string | null {
 export async function fetchLoginBranding(slug: string, signal: AbortSignal): Promise<LoginBranding | null> {
   const result = await supabase.rpc("business_login_branding", { p_slug: slug }).abortSignal(signal);
   if (result.error) throw new Error("Unable to load sign-in details.");
-  const data = result.data as { name?: unknown; accent?: unknown; logo_url?: unknown } | null;
+  const data = result.data as { name?: unknown; accent?: unknown; logo_url?: unknown; palette?: unknown } | null;
   if (!data || typeof data.name !== "string" || !data.name.trim()) return null;
-  return { name: data.name.trim(), accent: safeAccent(data.accent), logoUrl: safeLogoUrl(data.logo_url) };
+  return { name: data.name.trim(), accent: safeAccent(data.accent), logoUrl: safeLogoUrl(data.logo_url), palette: brandPalette(data.palette) };
 }

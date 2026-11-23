@@ -21,7 +21,7 @@ begin
   -- Anonymous lookup: presentation fields only, active businesses only.
   execute 'set local role anon';
   payload := public.business_login_branding('ahaa');
-  if payload->>'name' is null or payload->>'logo_url' <> '/aaha-logo.png' then raise exception 'Ahaa branding not returned: %', payload; end if;
+  if payload->>'name' is null or payload->>'logo_url' <> '/aaha-logo.png' or payload->>'palette' <> 'warm' then raise exception 'Ahaa branding not returned: %', payload; end if;
   if payload ? 'id' or payload ? 'slug' or payload ? 'status' or payload ? 'settings' then raise exception 'Lookup exposes more than branding: %', payload; end if;
   if public.business_login_branding('no-such-business') is not null then raise exception 'Unknown business returned branding'; end if;
   if public.business_login_branding('Bad Slug!') is not null or public.business_login_branding(null) is not null then raise exception 'Invalid slug returned branding'; end if;
@@ -63,9 +63,16 @@ begin
   -- Clearing returns to defaults (name falls back to the business name).
   payload := public.platform_update_business_branding(setup_business,'',null,'');
   if payload <> '{}'::jsonb then raise exception 'Branding not cleared: %', payload; end if;
+  -- Saving from the console keeps keys it does not manage (the palette).
+  execute 'set local role postgres';
+  update public.businesses set settings=jsonb_set(coalesce(settings,'{}'::jsonb),'{branding}','{"palette":"warm"}'::jsonb,true) where id=setup_business;
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claim.sub',actor::text,true);
+  payload := public.platform_update_business_branding(setup_business,'Renamed',null,null);
+  if payload <> '{"palette":"warm","display_name":"Renamed"}'::jsonb then raise exception 'Palette not preserved: %', payload; end if;
   execute 'set local role postgres';
   if not exists(select 1 from public.platform_audit_log where entity_type='businesses' and entity_id=setup_business::text and operation='UPDATE' and actor_id=actor) then
     raise exception 'Branding change was not audited';
   end if;
-  raise notice 'PASS: branding lookup scope, validation, platform-only updates, clearing and audit';
+  raise notice 'PASS: branding lookup scope, palette, validation, platform-only updates, clearing, palette preserved and audit';
 end $$;

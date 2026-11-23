@@ -83,7 +83,7 @@ function LoginInner() {
       brand={platformSignIn ? <PlatformBrand subtitle="Platform admin" /> : businessBrand ? <BusinessMark name={businessBrand.name} logoUrl={businessBrand.logoUrl} accent={businessBrand.accent} size="lg" /> : undefined}
       brandName={platformSignIn ? PLATFORM_NAME : businessSlug ? (businessBrand?.name ?? "") : undefined}
       accent={businessBrand?.accent}
-      neutral={businessSlug !== null}
+      neutral={businessSlug !== null && businessBrand?.palette !== "warm"}
     >
       {(activated || reset) && (
         <Banner tone="success" className="mb-4">
