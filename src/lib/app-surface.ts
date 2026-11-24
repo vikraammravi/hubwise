@@ -12,6 +12,17 @@ export function businessDefaultSlug(hostname: string): string {
   return slug && (hosts.length === 0 || hosts.includes(hostname.toLowerCase())) ? slug : "";
 }
 
+/**
+ * The default business's own domain (the first BUSINESS_DEFAULT_HOSTS entry) when the request
+ * arrives on another host, e.g. the shared Hubwise address. Its pages forward there.
+ */
+export function businessDefaultHome(hostname: string): { slug: string; origin: string } | null {
+  const slug = process.env.BUSINESS_DEFAULT_SLUG?.trim() ?? "";
+  const hosts = (process.env.BUSINESS_DEFAULT_HOSTS ?? "").split(",").map(host => host.trim().toLowerCase()).filter(Boolean);
+  if (!slug || hosts.length === 0 || hosts.includes(hostname.toLowerCase())) return null;
+  return /^[a-z0-9.-]+$/.test(hosts[0]) ? { slug, origin: `https://${hosts[0]}` } : null;
+}
+
 export function operationsAppOrigin(): string | null {
   const configured = process.env.OPERATIONS_APP_ORIGIN?.trim();
   if (!configured) return null;

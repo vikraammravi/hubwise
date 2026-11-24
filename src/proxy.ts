@@ -6,7 +6,7 @@ import { BUSINESS_API_HEADER, BUSINESS_HEADER, businessEntrySlug, businessWorksp
 import { businessEntryPath } from "@/features/workspaces/business-address";
 import { businessRoleDestination, businessRolePage, businessRolePath, parseBusinessRolePath } from "@/features/workspaces/business-routes";
 import { loadSessionProfile } from "@/features/workspaces/session";
-import { businessDefaultSlug, operationsAppOrigin, platformConsoleEnabled, platformDeployment } from "@/lib/app-surface";
+import { businessDefaultHome, businessDefaultSlug, operationsAppOrigin, platformConsoleEnabled, platformDeployment } from "@/lib/app-surface";
 
 const notFound = () => new NextResponse("Not found.", { status: 404 });
 
@@ -61,6 +61,14 @@ export async function proxy(request: NextRequest) {
     return notFound();
   }
   const businessMode = businessWorkspacesEnabled();
+  // A business with its own domain keeps one home: its pages on the shared address forward there.
+  const home = !platformOnly && businessMode ? businessDefaultHome(request.nextUrl.hostname) : null;
+  const homeEntry = home ? businessEntryPath(home.slug) : null;
+  if (home && homeEntry && (pathname === homeEntry || pathname.startsWith(`${homeEntry}/`))) {
+    const redirect = privateResponse(NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, home.origin)));
+    redirect.headers.set("Referrer-Policy", "no-referrer");
+    return redirect;
+  }
   if (!platformOnly && businessMode && (pathname === "/" || (isLogin && next === null))
     && (request.method === "GET" || request.method === "HEAD")) {
     const defaultEntry = businessEntryPath(businessDefaultSlug(request.nextUrl.hostname));

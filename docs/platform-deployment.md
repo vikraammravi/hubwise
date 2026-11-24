@@ -12,7 +12,7 @@ One repository currently builds two deployments. This is route/API separation in
 | PLATFORM_OWNER_ASSIGNMENT_ENABLED | absent | false until installed |
 | PLATFORM_BUSINESS_ACTIVATION_ENABLED | absent | false until installed |
 | PLATFORM_BUSINESS_LIFECYCLE_ENABLED | absent | false until the lifecycle migration is installed |
-| BUSINESS_DEFAULT_HOSTS | comma-separated hostnames that get the default business (`www.aahastore.com,aahastore.com`); other addresses, such as the shared Hubwise address, never open Ahaa. Unset = every host | absent |
+| BUSINESS_DEFAULT_HOSTS | comma-separated hostnames that get the default business (`www.aahastore.com,aahastore.com`); other addresses, such as the shared Hubwise address, never open Ahaa, and Ahaa's pages there forward to the first listed host. Unset = every host | absent |
 | OPERATIONS_APP_ORIGIN | optional Operations HTTPS origin; HTTP loopback allowed in development | absent |
 | BUSINESS_APP_ORIGIN | absent | the business app origin invitees use (https; http://localhost only outside production) |
 | BUSINESS_OWNER_ACCEPTANCE_ENABLED | false until installed (needs workspace mode and the server-only Supabase secret key) | absent |
