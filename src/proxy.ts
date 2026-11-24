@@ -6,7 +6,7 @@ import { BUSINESS_API_HEADER, BUSINESS_HEADER, businessEntrySlug, businessWorksp
 import { businessEntryPath } from "@/features/workspaces/business-address";
 import { businessRoleDestination, businessRolePage, businessRolePath, parseBusinessRolePath } from "@/features/workspaces/business-routes";
 import { loadSessionProfile } from "@/features/workspaces/session";
-import { operationsAppOrigin, platformConsoleEnabled, platformDeployment } from "@/lib/app-surface";
+import { businessDefaultSlug, operationsAppOrigin, platformConsoleEnabled, platformDeployment } from "@/lib/app-surface";
 
 const notFound = () => new NextResponse("Not found.", { status: 404 });
 
@@ -63,7 +63,7 @@ export async function proxy(request: NextRequest) {
   const businessMode = businessWorkspacesEnabled();
   if (!platformOnly && businessMode && (pathname === "/" || (isLogin && next === null))
     && (request.method === "GET" || request.method === "HEAD")) {
-    const defaultEntry = businessEntryPath(process.env.BUSINESS_DEFAULT_SLUG?.trim() ?? "");
+    const defaultEntry = businessEntryPath(businessDefaultSlug(request.nextUrl.hostname));
     if (defaultEntry) {
       const url = request.nextUrl.clone();
       url.pathname = defaultEntry;

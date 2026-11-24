@@ -169,6 +169,19 @@ it.each([
   expect(response.headers.get("cache-control")).toContain("no-store");
   expect(db.auth.getUser).not.toHaveBeenCalled();
 });
+it("opens Ahaa by default only on its own domain, never on the shared Hubwise address", async () => {
+  vi.stubEnv("APP_SURFACE", "business");
+  vi.stubEnv("BUSINESS_DEFAULT_SLUG", "ahaa");
+  vi.stubEnv("BUSINESS_DEFAULT_HOSTS", "www.aahastore.com, aahastore.com");
+  db.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+  expect((await proxy(new NextRequest("https://WWW.aahastore.com/"))).headers.get("location")).toBe("https://www.aahastore.com/aaha");
+  expect((await proxy(new NextRequest("https://aahastore.com/login"))).headers.get("location")).toBe("https://aahastore.com/aaha");
+  expect((await proxy(new NextRequest("https://hubwise-app.vercel.app/"))).headers.get("location")).toBeNull();
+  expect((await proxy(new NextRequest("https://hubwise-app.vercel.app/login"))).status).toBe(404);
+  const business = await proxy(new NextRequest("https://hubwise-app.vercel.app/test-business"));
+  expect(business.status).toBe(200);
+  expect(business.headers.get("location")).toBeNull();
+});
 it("leaves explicit login and recovery destinations in charge on the Ahaa deployment", async () => {
   vi.stubEnv("APP_SURFACE", "business");
   vi.stubEnv("BUSINESS_DEFAULT_SLUG", "ahaa");

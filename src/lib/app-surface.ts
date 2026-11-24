@@ -2,6 +2,16 @@
 export function platformDeployment() { return process.env.APP_SURFACE === "platform"; }
 export function platformConsoleEnabled() { return platformDeployment() && process.env.PLATFORM_CONSOLE_ENABLED === "true"; }
 
+/**
+ * The business a bare visit ("/" or "/login") opens. With BUSINESS_DEFAULT_HOSTS set, only those
+ * hostnames get it (e.g. Ahaa's own domain), so the shared Hubwise address never lands on Ahaa.
+ */
+export function businessDefaultSlug(hostname: string): string {
+  const slug = process.env.BUSINESS_DEFAULT_SLUG?.trim() ?? "";
+  const hosts = (process.env.BUSINESS_DEFAULT_HOSTS ?? "").split(",").map(host => host.trim().toLowerCase()).filter(Boolean);
+  return slug && (hosts.length === 0 || hosts.includes(hostname.toLowerCase())) ? slug : "";
+}
+
 export function operationsAppOrigin(): string | null {
   const configured = process.env.OPERATIONS_APP_ORIGIN?.trim();
   if (!configured) return null;
