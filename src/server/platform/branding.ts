@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { hasSameOrigin } from "@/lib/request-origin";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { validBusinessId } from "@/features/workspaces/context";
+import { INVOICE_CONTACT_LIMITS as LIMITS } from "@/features/workspaces/branding-model";
 import { PlatformAccessError, platformSession } from "./access";
 
 const headers = { "Cache-Control": "private, no-store" };
@@ -55,6 +56,34 @@ export async function updateBusinessBranding(request: Request, context: { params
       throw result.error;
     }
     return Response.json({ branding: result.data }, { headers });
+  } catch (error) { return failure(error); }
+}
+
+/** Sets the contact details printed on a business's invoices. Empty values clear a field. */
+export async function updateBusinessInvoiceContact(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { session, id } = await guard(request, context);
+    const raw = await request.text();
+    if (raw.length > 4096) throw new PlatformAccessError("Invoice details are too large.", 413);
+    let values: Record<string, unknown>;
+    try { values = JSON.parse(raw); } catch { throw new PlatformAccessError("Invalid invoice details.", 400); }
+    if (!values || typeof values !== "object" || Array.isArray(values)) throw new PlatformAccessError("Invalid invoice details.", 400);
+    const name = text(values.name, 400, "Name on invoices");
+    const address = text(values.address, 1000, "Address").replace(/\r\n?/g, "\n");
+    const phone = text(values.phone, 200, "Phone");
+    const email = text(values.email, 400, "Email");
+    if (name.length > LIMITS.name || /[\r\n]/.test(name)) throw new PlatformAccessError(`Use a single-line name of ${LIMITS.name} characters or fewer.`, 400);
+    if (address.length > LIMITS.address || address.split("\n").length > LIMITS.addressLines) throw new PlatformAccessError(`Use an address of up to ${LIMITS.addressLines} lines and ${LIMITS.address} characters.`, 400);
+    if (phone.length > LIMITS.phone || /[\r\n]/.test(phone)) throw new PlatformAccessError("Enter a single-line phone number.", 400);
+    if (email && (email.length > LIMITS.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new PlatformAccessError("Enter a valid email address.", 400);
+    const result = await session.rpc("platform_update_business_invoice_contact", { p_business_id: id, p_name: name, p_address: address, p_phone: phone, p_email: email });
+    if (result.error) {
+      if (result.error.code === "22023") throw new PlatformAccessError("Check the invoice details.", 400);
+      if (result.error.code === "P0002") throw new PlatformAccessError("Business not found.", 404);
+      if (result.error.code === "42501") throw new PlatformAccessError("Platform access is required.", 403);
+      throw result.error;
+    }
+    return Response.json({ invoiceContact: result.data }, { headers });
   } catch (error) { return failure(error); }
 }
 

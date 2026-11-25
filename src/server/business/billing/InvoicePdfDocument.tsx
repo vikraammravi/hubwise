@@ -21,9 +21,10 @@ const styles=StyleSheet.create({
 const money=(value:number)=>new Intl.NumberFormat("en-CA",{minimumFractionDigits:2,maximumFractionDigits:2}).format(value);
 function date(value:string){const [year,month,day]=value.slice(0,10).split("-").map(Number);return new Date(Date.UTC(year,month-1,day)).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});}
 export function InvoicePdfDocument({invoice}:{invoice:InvoicePdfData}){
-  return <Document title={`Invoice ${invoice.number}`} author="Aaha Truly South"><Page size="LETTER" style={styles.page} wrap>
+  const from=invoice.from;
+  return <Document title={`Invoice ${invoice.number}`} author={from?.name}><Page size="LETTER" style={styles.page} wrap>
     <View style={styles.header} wrap={false}>
-      <View style={styles.company}><Text style={styles.business}>Aaha Truly South</Text><Text style={styles.contact}>1177 Brimley Road{`\n`}Scarborough ON M1P 3G5{`\n`}+1 226 724 3456{`\n`}aahatrulysouth@gmail.com</Text></View>
+      <View style={styles.company}>{from&&<><Text style={styles.business}>{from.name}</Text>{from.lines.length>0&&<Text style={styles.contact}>{from.lines.join("\n")}</Text>}</>}</View>
       <Text style={styles.title}>INVOICE</Text>
       {invoice.draft&&<><Text style={styles.draft}>DRAFT</Text><Text style={styles.notice}>{invoice.period?"Not sent to branch":"Individual invoice"}</Text></>}
     </View>

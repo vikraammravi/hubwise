@@ -18,6 +18,8 @@ import type { Order, OrderLine, Location, InvoiceEdit } from "@/lib/supabase/typ
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BusinessLink } from "@/features/workspaces/BusinessLink";
 import { InvoiceActions } from "@/features/billing/components/InvoiceActions";
+import { invoiceSender } from "@/features/workspaces/branding-model";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 
 type InvoiceOrder = Order & { locations: Pick<Location, "name" | "address" | "city" | "province"> | null; pickup_requests: { return_status: string | null }[]; weekly_invoices: {sent_at:string|null;payment_status:string}|null };
 type InvoiceLine = OrderLine & { catalog_items: { name: string; unit_type: string } | null };
@@ -29,6 +31,7 @@ export function InvoiceDetail({ orderId, isAdmin = false }: { orderId: string; i
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [history, setHistory] = useState<InvoiceEdit[]>([]);
+  const sender = invoiceSender(useCurrentUser().business);
   const load = useCallback(async () => {
     let invoiceQuery = supabase.from("orders").select("*, locations(name, address, city, province), pickup_requests(return_status), weekly_invoices(sent_at,payment_status)").eq("id", orderId);
     if (!isAdmin) invoiceQuery = invoiceQuery.not("weekly_invoice_id", "is", null).eq("status", "COMPLETED");
@@ -70,7 +73,7 @@ export function InvoiceDetail({ orderId, isAdmin = false }: { orderId: string; i
       <div><CardTitle className="text-xl">Invoice INV-{order.order_number}</CardTitle><p className="text-sm text-muted-foreground mt-1">{formatDate(invoiceDateKey(order))} · Order #{order.order_number}</p></div>
       <div className="flex flex-wrap items-center gap-2">{isAdmin&&<InvoiceActions id={orderId} kind="individual"/>}<StatusBadge status="pending" label={order.weekly_invoice_id ? "Combined" : order.status === "COMPLETED" ? "Ready to Combine" : "Awaiting Pickup"} />{canEdit && <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit Invoice</Button>}</div>
     </CardHeader><CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-      <div><p className="text-xs text-muted-foreground uppercase tracking-wide">From</p><p className="font-medium mt-1">Aaha Central Kitchen</p></div>
+      <div><p className="text-xs text-muted-foreground uppercase tracking-wide">From</p><p className="font-medium mt-1">{sender?.name ?? "Central kitchen"}</p>{sender?.lines.map((line, index) => <p key={index} className="text-muted-foreground">{line}</p>)}</div>
       <div><p className="text-xs text-muted-foreground uppercase tracking-wide">Bill To</p><p className="font-medium mt-1">{order.locations?.name ?? "Branch"}</p><p className="text-muted-foreground">{[order.locations?.address, order.locations?.city, order.locations?.province].filter(Boolean).join(", ")}</p></div>
     </CardContent></Card>
     {isAdmin && order.pickup_approval_status === "PENDING" && <Banner tone="info">Review the pending pickup request in Branch Orders before editing this invoice.</Banner>}

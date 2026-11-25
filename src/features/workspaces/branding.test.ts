@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { db, queryResult } from "@tests/mocks/supabase";
 import { loginBrandingRow } from "@tests/mocks/platform-branding";
-import { businessBranding, fetchLoginBranding, safeAccent, safeLogoUrl } from "./branding";
+import { businessBranding, fetchLoginBranding, invoiceSender, safeAccent, safeLogoUrl } from "./branding";
 
 it("accepts only #RRGGBB accents, normalised to lower case", () => {
   expect(safeAccent("#0EA5E9")).toBe("#0ea5e9");
@@ -61,4 +61,17 @@ it("reads signed-in branding from business settings with safe fallbacks", () => 
     .toEqual({ name: "Spice Route", accent: null, logoUrl: null, palette: "neutral" });
   expect(businessBranding({ name: "Plain", settings: {} })).toEqual({ name: "Plain", accent: null, logoUrl: null, palette: "neutral" });
   expect(businessBranding({ name: "Odd", settings: { branding: ["x"] } })).toEqual({ name: "Odd", accent: null, logoUrl: null, palette: "neutral" });
+});
+
+it("builds an invoice sender from the business's own invoice details", () => {
+  const settings = { branding: { display_name: "Spice Route" }, invoice_contact: { name: " Spice Route Ltd ", address: "9 Harbour St\r\n\nHalifax NS ", phone: "+1 555 0100", email: "billing@spice.example" } };
+  expect(invoiceSender({ name: "Spice Route Kitchens", settings })).toEqual({ name: "Spice Route Ltd", lines: ["9 Harbour St", "Halifax NS", "+1 555 0100", "billing@spice.example"] });
+});
+
+it("falls back to the display name, ignores malformed details, and has no sender without a business", () => {
+  expect(invoiceSender({ name: "Spice Route Kitchens", settings: { branding: { display_name: "Spice Route" } } })).toEqual({ name: "Spice Route", lines: [] });
+  expect(invoiceSender({ name: "Spice Route Kitchens", settings: { invoice_contact: { name: 42, address: ["x"], phone: "  ", email: null } } })).toEqual({ name: "Spice Route Kitchens", lines: [] });
+  expect(invoiceSender({ name: "Spice Route Kitchens", settings: { invoice_contact: "bad" } })).toEqual({ name: "Spice Route Kitchens", lines: [] });
+  expect(invoiceSender(null)).toBeNull();
+  expect(invoiceSender(undefined)).toBeNull();
 });

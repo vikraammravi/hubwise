@@ -126,6 +126,6 @@ function businessLifecycleAction(business: PlatformBusiness, statusUnknown: bool
     return null;
   }
   if (business.status === "provisioning" && !business.owner_assigned && !business.invitation && !statusUnknown
-    && !Object.values(business.branding ?? {}).some(Boolean)) return "delete";
+    && !Object.values(business.branding ?? {}).some(Boolean) && !Object.values(business.invoice_contact ?? {}).some(Boolean)) return "delete";
   return null;
 }

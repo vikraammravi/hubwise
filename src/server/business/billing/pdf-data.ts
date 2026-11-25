@@ -6,6 +6,7 @@ import { paymentNeedsReview } from "@/features/billing/payments";
 import { weeklyNumber } from "@/features/billing/combined";
 import { BUSINESS_TIME_ZONE } from "@/lib/format";
 import { loadSessionProfile } from "@/features/workspaces/session";
+import { invoiceSender } from "@/features/workspaces/branding-model";
 
 type Database = Awaited<ReturnType<typeof createSupabaseServer>>;
 const itemNameCollator = new Intl.Collator("en-CA", { sensitivity: "base", numeric: true });
@@ -16,16 +17,17 @@ function address(location:{address?:string;city?:string;province?:string}|null){
 export async function loadInvoicePdf(db:Database,kind:InvoicePdfKind,id:string):Promise<InvoicePdfData>{
   const {data:{user},error:authError}=await db.auth.getUser();
   if(authError||!user)throw new InvoicePdfError("Please sign in to view this invoice.",401);
-  const {profile,error:profileError}=await loadSessionProfile(db,user.id);
+  const {profile,business,error:profileError}=await loadSessionProfile(db,user.id);
   if(profileError||!profile||profile.status!=="active"||!["CENTRAL_ADMIN","BRANCH_MANAGER"].includes(profile.role))throw new InvoicePdfError("You do not have invoice access.",403);
   const admin=profile.role==="CENTRAL_ADMIN";
+  const from=invoiceSender(business);
   if(kind==="individual"){
     if(!admin)throw new InvoicePdfError("Individual invoices are available to central admin. View your sent combined invoice instead.",403);
     const {data:order,error}=await db.from("orders").select("*,locations(name,address,city,province),order_lines(*,catalog_items(name,unit_type))").eq("id",id).single();
     if(error||!order)throw new InvoicePdfError("Invoice not found.",404);
     if(!["READY","COMPLETED"].includes(order.status))throw new InvoicePdfError("This order is not ready for invoicing.",409);
     return {
-      number:`INV-${order.order_number}`,date:order.order_date,branch:{name:order.locations?.name??"Branch",address:address(order.locations)},
+      number:`INV-${order.order_number}`,date:order.order_date,from,branch:{name:order.locations?.name??"Branch",address:address(order.locations)},
       lines:(order.order_lines??[]).map((line:{invoice_quantity:number|null;fulfilled_quantity:number;unit_price:number;invoice_is_taxable:boolean|null;is_taxable:boolean;invoice_line_total:number;final_line_total:number;catalog_items:{name:string;unit_type:string}|null})=>({
         name:line.catalog_items?.name??"Item",unit:line.catalog_items?.unit_type??"",quantity:line.invoice_quantity??line.fulfilled_quantity,
         price:Number(line.unit_price),taxable:line.invoice_is_taxable??line.is_taxable,subtotal:Number(line.invoice_line_total??line.final_line_total),
@@ -43,7 +45,7 @@ export async function loadInvoicePdf(db:Database,kind:InvoicePdfKind,id:string):
   const stamp=draft?record.created_at:invoice.sent_at??record.sent_at??record.created_at;
   const invoiceDate=new Intl.DateTimeFormat("en-CA",{timeZone:BUSINESS_TIME_ZONE,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(stamp));
   const location=Array.isArray(record.locations)?record.locations[0]:record.locations;
-  return {number:weeklyNumber(id),date:invoiceDate,
+  return {number:weeklyNumber(id),date:invoiceDate,from,
     period:{from:invoice.start_date,to:invoice.end_date},branch:{name:invoice.branch_name,address:address(location)},
     lines:invoice.lines.map(line=>({name:typeof line.name==="string"?line.name:"Item",unit:line.unit_type,quantity:line.quantity,price:Number(line.unit_price),taxable:line.is_taxable,subtotal:Number(line.subtotal)}))
       .sort((a,b)=>itemNameCollator.compare(a.name.trim(),b.name.trim())),

@@ -69,7 +69,7 @@ export function LocationDialog({
           id="loc-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Aaha Oshawa"
+          placeholder="e.g. Downtown branch"
           required
         />
       </FormField>

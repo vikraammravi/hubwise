@@ -62,7 +62,7 @@ export default function AdminBranchesPage() {
     <div className="max-w-[1200px] mx-auto space-y-5">
       <PageHeader
         title="Branches"
-        subtitle="All Aaha locations, including the central kitchen."
+        subtitle="All locations, including the central kitchen."
         actions={<LocationDialog onSaved={() => { void refresh(); }} />}
       />
       {error && <Banner tone="danger">{error}</Banner>}

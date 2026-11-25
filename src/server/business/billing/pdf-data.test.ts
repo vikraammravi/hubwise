@@ -131,3 +131,19 @@ it("uses the selected business role when a user cannot access invoices there",as
   await expect(loadInvoicePdf(db as unknown as Database,"combined",pdfId)).rejects.toMatchObject({status:403});
   expect(db.from).not.toHaveBeenCalled();
 });
+it("prints only the signed-in business's own invoice details",async()=>{
+  vi.stubEnv("NEXT_PUBLIC_BUSINESS_WORKSPACES_ENABLED","true");
+  const workspace={...adminWorkspace,business:{...adminWorkspace.business,settings:{branding:{display_name:"Spice Route"},invoice_contact:{name:"Spice Route Ltd",address:"9 Harbour St\nHalifax NS",email:"billing@spice.example"}}}};
+  db.auth.getUser.mockResolvedValue({data:{user:{id:workspace.profile.id}},error:null});
+  db.rpc.mockImplementation(name=>queryResult(name==="current_workspace"?workspace:pdfSnapshot));
+  db.from.mockReturnValue(queryResult(pdfCombinedRecord));
+  const invoice=await loadInvoicePdf(db as unknown as Database,"combined",pdfId);
+  expect(invoice.from).toEqual({name:"Spice Route Ltd",lines:["9 Harbour St","Halifax NS","billing@spice.example"]});
+  let pages:LayoutNode[]=[];
+  const document=cloneElement(InvoicePdfDocument({invoice}),{onRender:(result:unknown)=>{pages=(result as {_INTERNAL__LAYOUT__DATA_:LayoutNode})._INTERNAL__LAYOUT__DATA_.children??[];}});
+  await pdf(document).toBlob();
+  const rendered=pages.map(layoutText).join(" ");
+  expect(rendered).toContain("Spice Route Ltd");
+  expect(rendered).toContain("Halifax NS");
+  expect(rendered).not.toMatch(/Aaha|Brimley/i);
+});

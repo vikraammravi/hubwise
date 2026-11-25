@@ -32,7 +32,7 @@ function Sidebar({
   footerEntries?: NavEntry[];
   user: ShellUser;
   brandHref: string;
-  branding: LoginBranding | null;
+  branding: LoginBranding | null | undefined;
   signInPath?: string;
   onNavigate?: () => void;
 }) {

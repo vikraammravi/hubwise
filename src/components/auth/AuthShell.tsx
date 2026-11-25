@@ -1,5 +1,4 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Logo } from "@/components/shared/Logo";
 
 export function AuthShell({
   title,
@@ -7,7 +6,7 @@ export function AuthShell({
   children,
   footer,
   showBrand = true,
-  brandName = "Aaha Central · Truly South",
+  brandName = "",
   brand,
   accent,
   neutral = false,
@@ -18,7 +17,7 @@ export function AuthShell({
   footer?: ReactNode;
   showBrand?: boolean;
   brandName?: string;
-  /** Replaces the default (Ahaa) logo, e.g. on the platform sign-in. */
+  /** The mark above the form (a business or platform brand). Nothing when absent. */
   brand?: ReactNode;
   /** A business accent (#RRGGBB) for buttons and links on its own sign-in page. */
   accent?: string | null;
@@ -29,9 +28,9 @@ export function AuthShell({
     <div className={`min-h-screen bg-background flex flex-col${neutral ? " neutral-surface" : ""}`} style={accent ? ({ "--primary": accent, "--ring": accent, "--saffron-hover": accent } as CSSProperties) : undefined}>
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
         <div className="w-full max-w-md bg-surface border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
-          {showBrand && (
+          {showBrand && brand && (
             <div className="flex justify-center mb-6">
-              {brand ?? <Logo variant="full" size="lg" href="/" />}
+              {brand}
             </div>
           )}
           {(title || subtitle) && (

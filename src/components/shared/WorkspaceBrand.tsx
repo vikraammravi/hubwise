@@ -9,11 +9,15 @@ import { Logo } from "./Logo";
 const THEME_CLASS = "neutral-surface";
 const ACCENT_VARS = ["--primary", "--ring", "--saffron-hover", "--sidebar-primary"] as const;
 
-/** The signed-in business's branding, or null for the original Ahaa look (warm palette, legacy mode, or loading). */
-export function useWorkspaceBranding(): LoginBranding | null {
+/**
+ * The signed-in business's branding; null for the original Ahaa look (warm palette or legacy mode);
+ * undefined in workspace mode while no business is known, so no brand (never Ahaa's) is shown.
+ */
+export function useWorkspaceBranding(): LoginBranding | null | undefined {
   const { business } = useCurrentUser();
   return useMemo(() => {
-    if (!businessWorkspacesEnabled() || !business) return null;
+    if (!businessWorkspacesEnabled()) return null;
+    if (!business) return undefined;
     const branding = businessBranding(business);
     return branding.palette === "warm" ? null : branding;
   }, [business]);
@@ -23,9 +27,9 @@ export function useWorkspaceBranding(): LoginBranding | null {
  * Applies the neutral theme and the business accent to the whole page (dialogs and menus render
  * outside the shell), and restores the original theme when the business changes or the shell unmounts.
  */
-export function useWorkspaceTheme(branding: LoginBranding | null) {
+export function useWorkspaceTheme(branding: LoginBranding | null | undefined) {
   const accent = branding?.accent ?? null;
-  const neutral = branding !== null;
+  const neutral = branding != null;
   useEffect(() => {
     if (!neutral) return;
     const root = document.documentElement;
@@ -39,7 +43,8 @@ export function useWorkspaceTheme(branding: LoginBranding | null) {
 }
 
 /** Header/sidebar brand: Ahaa's logo for the original look, otherwise the business's own mark. */
-export function WorkspaceBrand({ branding, size, href }: { branding: LoginBranding | null; size: "sm" | "md"; href: string }) {
-  if (!branding) return <Logo variant="full" size={size} href={href} priority />;
+export function WorkspaceBrand({ branding, size, href }: { branding: LoginBranding | null | undefined; size: "sm" | "md"; href: string }) {
+  if (branding === undefined) return null;
+  if (branding === null) return <Logo variant="full" size={size} href={href} priority />;
   return <BusinessMark name={branding.name} logoUrl={branding.logoUrl} accent={branding.accent} size={size === "md" ? "md" : "sm"} layout="inline" href={href} />;
 }

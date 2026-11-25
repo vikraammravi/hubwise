@@ -1,6 +1,8 @@
 export type InvoicePdfLine = { name:string; unit:string; quantity:number; price:number; taxable:boolean; subtotal:number };
 export type InvoicePdfData = {
-  number:string; date:string; period?:{from:string;to:string}; branch:{name:string;address:string};
+  number:string; date:string;
+  /** The issuing business's own invoice details; null when no business is selected (legacy mode). */
+  from:{name:string;lines:string[]}|null; period?:{from:string;to:string}; branch:{name:string;address:string};
   lines:InvoicePdfLine[]; subtotal:number; tax:number; total:number;
   draft:boolean; payment?:"UNPAID"|"PAID"; paymentNeedsReview?:boolean;
   orders?:{number:number;date:string;total:number}[];

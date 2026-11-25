@@ -32,3 +32,25 @@ export function parseLoginBranding(value: unknown): LoginBranding | null {
   if (!data || typeof data.name !== "string" || !data.name.trim()) return null;
   return { name: data.name.trim(), accent: safeAccent(data.accent), logoUrl: safeLogoUrl(data.logo_url), palette: brandPalette(data.palette) };
 }
+
+/** Contact details a business prints on its invoices (businesses.settings->'invoice_contact'). */
+export type InvoiceContact = { name: string | null; address: string | null; phone: string | null; email: string | null };
+export const INVOICE_CONTACT_LIMITS = { name: 120, address: 300, addressLines: 4, phone: 40, email: 120 } as const;
+
+export function invoiceContact(settings: unknown): InvoiceContact {
+  const raw = settings && typeof settings === "object" && !Array.isArray(settings) ? (settings as Record<string, unknown>).invoice_contact : null;
+  const contact = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+  const value = (key: keyof InvoiceContact) => typeof contact[key] === "string" && contact[key].trim() ? contact[key].trim() : null;
+  return { name: value("name"), address: value("address"), phone: value("phone"), email: value("email") };
+}
+
+/**
+ * Who an invoice is from: the business's invoice name (else its display name), then its address
+ * lines, phone and email. Only the signed-in business's own details; null without a business.
+ */
+export function invoiceSender(business: { name: string; settings: Record<string, unknown> } | null | undefined): { name: string; lines: string[] } | null {
+  if (!business) return null;
+  const contact = invoiceContact(business.settings);
+  const address = contact.address?.split(/\r?\n/).map(line => line.trim()).filter(Boolean) ?? [];
+  return { name: contact.name ?? businessBranding(business).name, lines: [...address, contact.phone, contact.email].filter((line): line is string => !!line) };
+}

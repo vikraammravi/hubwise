@@ -3,6 +3,7 @@ import type { InvoicePdfData } from "@/features/billing/pdf-contract";
 export const longCombinedInvoice: InvoicePdfData = {
   number: "WK-EXAMPLE",
   date: "2026-11-11",
+  from: { name: "Example Kitchen", lines: ["1 Example Street", "Example City ON"] },
   period: { from: "2026-11-01", to: "2026-11-11" },
   branch: { name: "Example Branch", address: "123 Example Road" },
   lines: Array.from({ length: 45 }, (_, index) => ({

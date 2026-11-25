@@ -26,7 +26,7 @@ export const combinedPdfSnapshotWithMissingNames={
   ],
 };
 export const pdfPreview:InvoicePdfData={
-  number:"INV-1107",date:"2026-10-23",branch:{name:"AAHA OSHAWA",address:"1180 Simcoe St N, Oshawa ON L1G 4W8"},
+  number:"INV-1107",date:"2026-10-23",from:{name:"Example Kitchen",lines:["1 Example Street","+1 555 0100"]},branch:{name:"AAHA OSHAWA",address:"1180 Simcoe St N, Oshawa ON L1G 4W8"},
   lines:[{name:"Idly batter",unit:"Bucket",quantity:10,price:50,taxable:true,subtotal:500},{name:"Dosa batter",unit:"Bucket",quantity:13,price:63,taxable:true,subtotal:819}],
   subtotal:1319,tax:171.47,total:1490.47,draft:false,payment:"UNPAID",
 };

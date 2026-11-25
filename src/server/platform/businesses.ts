@@ -3,6 +3,7 @@ import { hasSameOrigin } from "@/lib/request-origin";
 import { PlatformAccessError, platformSession } from "./access";
 import { validBusinessId } from "@/features/workspaces/context";
 import { businessAddressIsReserved, hasBusinessSlugFormat } from "@/features/workspaces/business-address";
+import { invoiceContact } from "@/features/workspaces/branding-model";
 
 const headers = { "Cache-Control": "private, no-store" };
 function failure(error: unknown) {
@@ -58,6 +59,7 @@ export async function listBusinesses() {
       return {
         ...business,
         branding: brandingOf(settings),
+        invoice_contact: invoiceContact(settings),
         owner_assigned: Array.isArray(business_memberships) && business_memberships.some(member => member.role === "CENTRAL_ADMIN"),
         invitation: invitation ? { name: invitation.name, email: invitation.email, state: invitation.state, created_at: invitation.created_at, expires_at: invitation.expires_at, completed_at: invitation.completed_at } : null,
       };

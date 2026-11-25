@@ -5,7 +5,8 @@ import { db, queryResult } from "@tests/mocks/supabase";
 import { invitationBusinessId as businessId } from "@tests/mocks/platform-invitations";
 import { brandingInput, jpegBytes, logoFile, pngBytes, webpBytes } from "@tests/mocks/platform-branding";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { updateBusinessBranding, uploadBusinessLogo } from "./branding";
+import { updateBusinessBranding, updateBusinessInvoiceContact, uploadBusinessLogo } from "./branding";
+import * as invoiceContactRoute from "@/app/api/platform/businesses/[id]/invoice-contact/route";
 import * as brandingRoute from "@/app/api/platform/businesses/[id]/branding/route";
 import * as logoRoute from "@/app/api/platform/businesses/[id]/branding/logo/route";
 
@@ -249,5 +250,42 @@ describe("uploadBusinessLogo", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "The logo could not be uploaded. Please try again." });
     expect(bucket.getPublicUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe("invoice details", () => {
+  const contactRequest = (body: string | object, from = origin) => new Request(`${origin}/api/platform/businesses/${businessId}/invoice-contact`, { method: "PATCH", headers: { origin: from, host: "platform.example", "content-type": "application/json" }, body: typeof body === "string" ? body : JSON.stringify(body) });
+
+  it("exposes the handler as the route's PATCH", () => {
+    expect(invoiceContactRoute.PATCH).toBe(updateBusinessInvoiceContact);
+  });
+
+  it("saves trimmed details with normalised line breaks", async () => {
+    brandingRpc(queryResult({ name: "Spice Route Ltd" }));
+    const response = await updateBusinessInvoiceContact(contactRequest({ name: " Spice Route Ltd ", address: "9 Harbour St\r\nHalifax NS", phone: "+1 555 0100", email: "billing@spice.example" }), context());
+    expect(response.status).toBe(200);
+    expect(db.rpc).toHaveBeenCalledWith("platform_update_business_invoice_contact", { p_business_id: businessId, p_name: "Spice Route Ltd", p_address: "9 Harbour St\nHalifax NS", p_phone: "+1 555 0100", p_email: "billing@spice.example" });
+  });
+
+  it.each([
+    [{ name: "x".repeat(121) }],
+    [{ name: "Two\nlines" }],
+    [{ address: "1\n2\n3\n4\n5" }],
+    [{ address: "x".repeat(301) }],
+    [{ phone: "1\n2" }],
+    [{ email: "not-an-email" }],
+    [{ name: 42 }],
+  ])("rejects invalid details %j without calling the database", async body => {
+    const response = await updateBusinessInvoiceContact(contactRequest(body), context());
+    expect(response.status).toBe(400);
+    expect(rpcNames()).not.toContain("platform_update_business_invoice_contact");
+  });
+
+  it("rejects cross-site requests and maps database errors", async () => {
+    expect((await updateBusinessInvoiceContact(contactRequest({ name: "x" }, "https://evil.example"), context())).status).toBe(403);
+    brandingRpc(queryResult(null, { code: "P0002", message: "missing" } as { message: string }));
+    expect((await updateBusinessInvoiceContact(contactRequest({ name: "x" }), context())).status).toBe(404);
+    brandingRpc(queryResult(null, { code: "22023", message: "bad" } as { message: string }));
+    expect((await updateBusinessInvoiceContact(contactRequest({ name: "x" }), context())).status).toBe(400);
   });
 });

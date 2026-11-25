@@ -1,7 +1,9 @@
 export type OwnerInvitationState = "issued" | "processing" | "completed" | "revoked";
 export type OwnerInvitation = { name: string; email: string; state: OwnerInvitationState; created_at: string; expires_at: string; completed_at: string | null };
+import type { InvoiceContact } from "@/features/workspaces/branding-model";
+export type { InvoiceContact };
 export type BusinessBranding = { display_name: string | null; accent: string | null; logo_url: string | null };
-export type PlatformBusiness = { id: string; name: string; slug: string; status: "provisioning" | "active" | "suspended"; isolation_ready: boolean; owner_assigned: boolean; created_at: string; invitation?: OwnerInvitation | null; branding?: BusinessBranding | null };
+export type PlatformBusiness = { id: string; name: string; slug: string; status: "provisioning" | "active" | "suspended"; isolation_ready: boolean; owner_assigned: boolean; created_at: string; invitation?: OwnerInvitation | null; branding?: BusinessBranding | null; invoice_contact?: InvoiceContact | null };
 export type PlatformDirectory = { businesses: PlatformBusiness[]; invitationsUnavailable: boolean };
 export type BusinessLifecycleAction = "delete" | "suspend" | "restore";
 
@@ -41,6 +43,9 @@ export async function revokeBusinessInvitation(businessId: string): Promise<void
 
 export async function updateBusinessBranding(businessId: string, values: { displayName: string; accent: string; logoUrl: string }): Promise<void> {
   await send(`${businessPath(businessId)}/branding`, { method: "PATCH", headers: json, body: JSON.stringify(values) }, "Unable to save branding.");
+}
+export async function updateBusinessInvoiceContact(businessId: string, values: { name: string; address: string; phone: string; email: string }): Promise<void> {
+  await send(`${businessPath(businessId)}/invoice-contact`, { method: "PATCH", headers: json, body: JSON.stringify(values) }, "Unable to save invoice details.");
 }
 export async function uploadBusinessLogo(businessId: string, file: File): Promise<string> {
   const form = new FormData();
