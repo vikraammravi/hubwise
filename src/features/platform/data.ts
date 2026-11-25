@@ -1,9 +1,10 @@
+import type { BusinessUsage } from "./usage-model";
 export type OwnerInvitationState = "issued" | "processing" | "completed" | "revoked";
 export type OwnerInvitation = { name: string; email: string; state: OwnerInvitationState; created_at: string; expires_at: string; completed_at: string | null };
 import type { InvoiceContact } from "@/features/workspaces/branding-model";
 export type { InvoiceContact };
 export type BusinessBranding = { display_name: string | null; accent: string | null; logo_url: string | null };
-export type PlatformBusiness = { id: string; name: string; slug: string; status: "provisioning" | "active" | "suspended"; isolation_ready: boolean; owner_assigned: boolean; created_at: string; invitation?: OwnerInvitation | null; branding?: BusinessBranding | null; invoice_contact?: InvoiceContact | null };
+export type PlatformBusiness = { id: string; name: string; slug: string; status: "provisioning" | "active" | "suspended"; isolation_ready: boolean; owner_assigned: boolean; created_at: string; invitation?: OwnerInvitation | null; branding?: BusinessBranding | null; invoice_contact?: InvoiceContact | null; ai_scan_configured?: boolean };
 export type PlatformDirectory = { businesses: PlatformBusiness[]; invitationsUnavailable: boolean };
 export type BusinessLifecycleAction = "delete" | "suspend" | "restore";
 
@@ -86,4 +87,11 @@ export function invitationStatus(invitation: OwnerInvitation | null | undefined,
   if (invitation.state === "processing") return "review";
   if (invitation.state === "revoked") return "revoked";
   return new Date(invitation.expires_at).getTime() <= now ? "expired" : "pending";
+}
+
+export async function fetchBusinessUsage(signal: AbortSignal): Promise<{ usage: BusinessUsage[]; generatedAt: string }> {
+  return send(`/api/platform/usage`, { signal }, "Unable to load usage.");
+}
+export async function updateBusinessAiScan(businessId: string, values: { enabled: boolean; monthlyLimit: number }): Promise<void> {
+  await send(`${businessPath(businessId)}/ai-scan`, { method: "PATCH", headers: json, body: JSON.stringify(values) }, "Unable to update AI scanning.");
 }

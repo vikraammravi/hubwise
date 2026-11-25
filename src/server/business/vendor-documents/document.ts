@@ -52,7 +52,7 @@ export async function POST(request: Request, context: Context) {
     if (error || !row) throw new Error("Receipt not found.");
     const { data: allowed, error: quotaError } = await db.rpc(businessWorkspacesEnabled() ? "reserve_receipt_scan_for_business" : "reserve_receipt_scan", { ...(businessWorkspacesEnabled() ? { p_business_id: businessId } : {}), p_receipt_id: id, p_user_id: user.id });
     if (quotaError) throw new Error("Scan limits are not configured. Apply the receipt migration.");
-    if (!allowed) return Response.json({ error: "Scan limit reached or another scan is running. Limits: 10 per user per day and 100 per environment per month. Wait before retrying; manual entry remains available." }, { status: 429 });
+    if (!allowed) return Response.json({ error: "Scan limit reached or another scan is running. AI scanning may be off for this business, its monthly allowance used, or the daily limit of 10 per user reached. Manual entry remains available." }, { status: 429 });
     failScan = async () => { await receiptScope(db.from("purchase_receipts").update({ scan_status: "FAILED", operation_url: null }), locationId, businessId).eq("id", id); };
     const { data: file, error: downloadError } = await db.storage.from("purchase-receipts").download(row.file_path);
     if (downloadError || !file) throw new Error("Unable to read original receipt.");

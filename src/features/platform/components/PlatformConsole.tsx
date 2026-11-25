@@ -1,7 +1,7 @@
 "use client";
 import { businessEntryPath } from "@/features/workspaces/business-address";
 import { useMemo, useState, type ReactNode } from "react";
-import { AlertTriangle, ArrowRight, Building2, CheckCircle2, Clock, LayoutDashboard, MailPlus, Plus, RefreshCw, Search, ShieldCheck, UserPlus } from "lucide-react";
+import { AlertTriangle, ArrowRight, BarChart3, Building2, CheckCircle2, Clock, LayoutDashboard, MailPlus, Plus, RefreshCw, Search, ShieldCheck, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Banner } from "@/components/shared/Banner";
@@ -16,14 +16,16 @@ import { InitialAdminDialog, type AdminDialogRequest } from "./InitialAdminDialo
 import { PlatformBrand } from "./PlatformBrand";
 import { RegisterBusinessDialog } from "./RegisterBusinessDialog";
 import { BrandingDialog } from "./BrandingDialog";
+import { UsageView } from "./UsageView";
 
 type Flags = { registrationEnabled?: boolean; ownerAssignmentEnabled?: boolean; invitationsEnabled?: boolean; activationEnabled?: boolean; lifecycleEnabled?: boolean; businessAppOrigin?: string | null };
-type View = "overview" | "businesses";
+type View = "overview" | "businesses" | "usage";
 type Filter = "all" | "active" | "setup" | "attention";
 
 const NAV: { view: View; label: string; icon: typeof LayoutDashboard }[] = [
   { view: "overview", label: "Overview", icon: LayoutDashboard },
   { view: "businesses", label: "Businesses", icon: Building2 },
+  { view: "usage", label: "Usage", icon: BarChart3 },
 ];
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
@@ -156,7 +158,9 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
     return null;
   }
 
-  const heading = view === "overview" ? { title: "Overview", subtitle: "Onboarding health across every business on the platform." } : { title: "Businesses", subtitle: "Register businesses, invite their first admin and activate them." };
+  const heading = view === "overview" ? { title: "Overview", subtitle: "Onboarding health across every business on the platform." }
+    : view === "usage" ? { title: "Usage", subtitle: "AI scanning, feature use and setup progress for each business." }
+    : { title: "Businesses", subtitle: "Register businesses, invite their first admin and activate them." };
 
   return <div className="flex min-h-screen flex-col bg-background lg:flex-row">
     <aside className="flex flex-col bg-sidebar text-sidebar-foreground lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:shrink-0">
@@ -197,7 +201,7 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
         {statusUnknown && <Banner tone="info">Invitation status is temporarily unavailable, so admin setup is paused to avoid replacing a link already shared. Refresh to try again.</Banner>}
         {list.error && <Banner tone="danger">{list.error}<Button variant="ghost" onClick={() => void list.refresh()}>Retry</Button></Banner>}
 
-        {list.loading && !businesses ? <LoadingState label="Loading businesses…" /> : view === "overview" ? <>
+        {list.loading && !businesses ? <LoadingState label="Loading businesses…" /> : view === "usage" ? <UsageView businesses={businesses ?? []} canManage /> : view === "overview" ? <>
           <section aria-label="Business overview" className="grid grid-cols-2 gap-3 md:grid-cols-5">
             <StatTile label="Businesses" value={counts.total} />
             <StatTile label="Active" value={counts.active} />

@@ -60,6 +60,7 @@ export async function listBusinesses() {
         ...business,
         branding: brandingOf(settings),
         invoice_contact: invoiceContact(settings),
+        ai_scan_configured: !!settings && typeof settings === "object" && !Array.isArray(settings) && "ai_scan" in settings,
         owner_assigned: Array.isArray(business_memberships) && business_memberships.some(member => member.role === "CENTRAL_ADMIN"),
         invitation: invitation ? { name: invitation.name, email: invitation.email, state: invitation.state, created_at: invitation.created_at, expires_at: invitation.expires_at, completed_at: invitation.completed_at } : null,
       };
