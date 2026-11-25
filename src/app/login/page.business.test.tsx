@@ -34,11 +34,13 @@ beforeEach(() => {
   document.title = "";
 });
 
-it("uses the top-level business page and removes the old landing page", async () => {
+it("uses the top-level business page; the bare address names no business", async () => {
   const entry = await TenantPage(params("spice-route")) as ReactElement<{ slug: string }>;
   expect(entry.type).toBe(BusinessEntryPage);
   expect(entry.props.slug).toBe("spice-route");
-  expect(() => HomePage()).toThrow("NEXT_NOT_FOUND");
+  const { container } = render(HomePage());
+  expect(container.textContent).toContain("Open your business's link");
+  expect(container.textContent).not.toMatch(/aaha|ahaa|spice/i);
 });
 
 it("uses /aaha for the Ahaa workspace's existing slug", async () => {

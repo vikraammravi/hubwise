@@ -1,4 +1,5 @@
 "use client";
+import { businessEntryPath } from "@/features/workspaces/business-address";
 import { useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, Building2, CheckCircle2, Clock, LayoutDashboard, MailPlus, Plus, RefreshCw, Search, ShieldCheck, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -102,7 +103,7 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();
     return (businesses ?? []).filter(business =>
-      (!term || business.name.toLowerCase().includes(term) || business.slug.includes(term))
+      (!term || business.name.toLowerCase().includes(term) || business.slug.includes(term) || (businessEntryPath(business.slug) ?? "").includes(term))
       && (filter === "all"
         || (filter === "active" && business.status === "active")
         || (filter === "setup" && business.status === "provisioning")
@@ -227,7 +228,7 @@ export default function PlatformConsole({ registrationEnabled = false, ownerAssi
             <Panel title="Recently added" action={<Button variant="ghost" size="sm" onClick={() => setView("businesses")}>View all<ArrowRight className="size-3.5" /></Button>}>
               {businesses?.length ? <ul className="divide-y">
                 {[...businesses].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 5).map(business => <li key={business.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-                  <div className="min-w-0"><p className="truncate text-sm font-medium">{business.name}</p><p className="truncate font-mono text-xs text-muted-foreground">/{business.slug}</p></div>
+                  <div className="min-w-0"><p className="truncate text-sm font-medium">{business.name}</p><p className="truncate font-mono text-xs text-muted-foreground">{businessEntryPath(business.slug) ?? `/${business.slug}`}</p></div>
                   <StatusPill status={business.status} />
                 </li>)}
               </ul> : <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">

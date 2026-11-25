@@ -10,7 +10,7 @@ function load(path, dependencies) {
 }
 test("account data helpers retain server errors and send only the requested operation",async()=>{
   const requests=[];
-  const api=load("src/features/users/data.ts",{require:()=>({supabase:{}}),fetch:async(path,options)=>{requests.push({path,options});return {ok:false,json:async()=>({error:"Cannot delete your own account."})};}});
+  const api=load("src/features/users/data.ts",{require:()=>({supabase:{},businessWorkspacesEnabled:()=>false,WORKSPACE_CHANGED_EVENT:"workspace-changed",businessApiHeaders:headers=>headers}),fetch:async(path,options)=>{requests.push({path,options});return {ok:false,json:async()=>({error:"Cannot delete your own account."})};}});
   await assert.rejects(api.deleteUserAccount("id/with/path"),/Cannot delete your own account/);
   assert.equal(requests[0].path,"/api/admin/users/id%2Fwith%2Fpath");
   assert.equal(requests[0].options.method,"DELETE");

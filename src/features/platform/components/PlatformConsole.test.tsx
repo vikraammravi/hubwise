@@ -608,3 +608,14 @@ it("saves branding from a directory row, then confirms and refreshes", async () 
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   await waitFor(() => expect(fetchBusinesses).toHaveBeenCalledTimes(2));
 });
+
+it("shows Ahaa's public address, not its registry slug, and finds it by that address", async () => {
+  showing({ ...platformBusinesses[1], id: "ahaa-id", name: "Aaha Truly South", slug: "ahaa" });
+  render(<PlatformConsole />);
+  const recent = await screen.findByRole("region", { name: "Recently added" });
+  expect(await within(recent).findByText("/aaha")).toBeInTheDocument();
+  expect(within(recent).queryByText("/ahaa")).not.toBeInTheDocument();
+  fireEvent.click(navButton("Businesses"));
+  fireEvent.change(screen.getByLabelText("Search businesses"), { target: { value: "aaha" } });
+  expect(within(panel("Business directory")).getByText("Aaha Truly South")).toBeInTheDocument();
+});
