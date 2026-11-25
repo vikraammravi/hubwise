@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
-import { BusinessLink, useBusinessHref } from "@/features/workspaces/BusinessLink";
+import { useBusinessHref } from "@/features/workspaces/BusinessLink";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { SidebarNav, type NavEntry, type NavItem } from "./SidebarNav";
+import { SidebarNav, activeNavLabel, type NavEntry, type NavItem } from "./SidebarNav";
+import { HeaderTitleContext, ShellHeadingContext } from "./ShellHeading";
 import { WorkspaceBrand, useWorkspaceBranding, useWorkspaceTheme, useWorkspaceTitle } from "./WorkspaceBrand";
-import type { LoginBranding } from "@/features/workspaces/branding";
-import { businessRolePath } from "@/features/workspaces/business-routes";
+import { businessEntryPath } from "@/features/workspaces/business-address";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { SignOutButton } from "./SignOutButton";
+import { AccountMenu } from "./AccountMenu";
 
 export type ShellUser = {
   name: string;
@@ -19,118 +19,101 @@ export type ShellUser = {
   initials: string;
 };
 
-function Sidebar({
-  entries,
-  footerEntries,
-  user,
-  brandHref,
-  branding,
-  signInPath,
-  onNavigate,
-}: {
-  entries: NavEntry[];
-  footerEntries?: NavEntry[];
-  user: ShellUser;
-  brandHref: string;
-  branding: LoginBranding | null | undefined;
-  signInPath?: string;
-  onNavigate?: () => void;
-}) {
-  return (
-    <div className="h-full min-h-0 flex flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
-      <div className="shrink-0 px-5 py-5 lg:py-3 border-b border-sidebar-border">
-        <WorkspaceBrand branding={branding} size="md" href={brandHref} />
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:thin]">
-        <SidebarNav entries={entries} onNavigate={onNavigate} />
-      </div>
-      <div className="shrink-0 border-t border-sidebar-border p-3 lg:p-2">
-        {footerEntries&&<SidebarNav entries={footerEntries} onNavigate={onNavigate} className="p-0 pb-2 lg:py-0 lg:pb-1"/>}
-        <div className="flex items-center gap-3 px-2 py-2 lg:py-1">
-          <Avatar className="w-9 h-9">
-            <AvatarFallback className="bg-accent text-accent-foreground text-xs font-semibold">
-              {user.initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium truncate">{user.name}</div>
-            <div className="text-[11px] text-muted-foreground truncate">
-              {user.role}
-            </div>
-          </div>
-          <SignOutButton variant="icon" returnTo={signInPath} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
+/**
+ * Signed-in layout. One header on every page: the business brand (back to Home) and the account menu
+ * (profile, sign out). The Home page is full width with no sidebar; inside a section the sidebar
+ * appears on desktop, a slide-out menu on phones, or the bottom bar when the role has one.
+ */
 export function AppShell({
   entries,
   footerEntries,
   user,
   brandHref,
+  homeHref,
   mobileNav,
   children,
 }: {
   entries: NavEntry[];
+  /** Account links (the profile entry moves into the header account menu). */
   footerEntries?: NavEntry[];
   user: ShellUser;
   brandHref: string;
+  /** The tiles page. On it the sidebar is hidden; elsewhere it is shown. */
+  homeHref?: string;
   mobileNav?: ReactNode; // optional bottom nav for mobile
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [pageTitle, setPageTitle] = useState<string | null>(null);
   const branding = useWorkspaceBranding();
   const { business, profile } = useCurrentUser();
+  const pathname = usePathname();
   const businessHref = useBusinessHref();
   const brandHome = businessHref(brandHref);
-  const signInPath = business && profile
-    ? businessRolePath(business.slug, profile.role === "CENTRAL_ADMIN" ? "/admin" : "/branch")
-    : undefined;
+  const isHome = !!homeHref && (pathname === homeHref || pathname === businessHref(homeHref));
+  const signInPath = business && profile ? businessEntryPath(business.slug) ?? undefined : undefined;
   useWorkspaceTheme(branding);
   useWorkspaceTitle();
-  const profileEntry=footerEntries?.find((entry):entry is NavItem=>"href" in entry&&entry.href.endsWith("/profile"));
+  const profileHref = footerEntries?.find((entry): entry is NavItem => "href" in entry && entry.href.endsWith("/profile"))?.href;
+  const showSidebar = !isHome;
+  // Inside a section, its name (e.g. "Daily Stock") sits in the header bar instead of on the page.
+  const section = showSidebar ? activeNavLabel(entries, pathname ?? "", businessHref) : null;
+  // Home has no section; the page may name itself (the branch name on branch Home).
+  const headerTitle = section ?? (isHome ? pageTitle : null);
+  // The bottom bar is for moving between sections; Home is the tiles, so it is not shown there.
+  const bottomNav = isHome ? null : mobileNav;
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <aside className="hidden lg:block w-64 shrink-0 h-dvh sticky top-0 border-r border-sidebar-border">
-        <Sidebar entries={entries} footerEntries={footerEntries} user={user} brandHref={brandHome} branding={branding} signInPath={signInPath} />
-      </aside>
-
-      <div className="flex-1 min-w-0 flex flex-col">
-        <header className="lg:hidden sticky top-0 z-30 flex items-center gap-2 bg-surface border-b border-border px-3 h-14">
-          {!mobileNav&&<Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Open menu">
-                <Menu className="size-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-72">
-              <SheetTitle className="sr-only">Navigation</SheetTitle>
-              <Sidebar
-                entries={entries}
-                footerEntries={footerEntries}
-                user={user}
-                brandHref={brandHome}
-                branding={branding}
-                signInPath={signInPath}
-                onNavigate={() => setOpen(false)}
-              />
-            </SheetContent>
-          </Sheet>}
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className={`sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-surface px-3 sm:px-4 lg:gap-0 lg:pr-8 ${showSidebar ? "lg:pl-0" : "lg:pl-8"}`}>
+        {showSidebar && !bottomNav && <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Open menu" className="lg:hidden">
+              <Menu className="size-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 p-0">
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <div className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground">
+              <div className="shrink-0 border-b border-sidebar-border px-5 py-4">
+                <WorkspaceBrand branding={branding} size="md" href={brandHome} />
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <SidebarNav entries={entries} onNavigate={() => setOpen(false)} />
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>}
+        {/* On desktop the brand sits above the sidebar, so the section name lines up with the page content. */}
+        <div className={showSidebar ? "lg:flex lg:h-full lg:w-64 lg:shrink-0 lg:items-center lg:border-r lg:border-sidebar-border lg:px-5" : undefined}>
           <WorkspaceBrand branding={branding} size="sm" href={brandHome} />
-          {mobileNav&&<div className="ml-auto flex items-center gap-2">{profileEntry&&<Button variant="ghost" size="icon" asChild><BusinessLink href={profileEntry.href} aria-label="My Profile"><Avatar className="size-8"><AvatarFallback className="text-xs">{user.initials}</AvatarFallback></Avatar></BusinessLink></Button>}<SignOutButton variant="icon" returnTo={signInPath}/></div>}
-        </header>
+        </div>
+        {headerTitle && <>
+          <span aria-hidden className="mx-1 hidden h-6 w-px bg-border sm:block lg:hidden" />
+          <p className="min-w-0 truncate text-base font-semibold text-forest sm:text-lg lg:pl-8 lg:text-xl">{headerTitle}</p>
+        </>}
+        <div className="ml-auto flex shrink-0 items-center gap-3">
+          <div className="hidden min-w-0 text-right sm:block">
+            <div className="truncate text-sm font-medium leading-tight">{user.name}</div>
+            <div className="truncate text-[11px] text-muted-foreground">{user.role}</div>
+          </div>
+          <AccountMenu user={user} profileHref={profileHref} returnTo={signInPath} />
+        </div>
+      </header>
 
-        <main
-          className={`flex-1 min-w-0 p-4 sm:p-6 lg:p-8 ${mobileNav ? "pb-24 lg:pb-8" : ""}`}
-        >
-          {children}
+      <div className="flex min-h-0 flex-1">
+        {showSidebar && <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-64 shrink-0 overflow-y-auto overscroll-contain border-r border-sidebar-border bg-sidebar text-sidebar-foreground [scrollbar-width:thin] lg:block">
+          <SidebarNav entries={entries} />
+        </aside>}
+
+        <main className={`min-w-0 flex-1 p-4 sm:p-6 lg:p-8 ${bottomNav ? "pb-28 lg:pb-8" : ""}`}>
+          <HeaderTitleContext.Provider value={setPageTitle}>
+            <ShellHeadingContext.Provider value={!!section}>{children}</ShellHeadingContext.Provider>
+          </HeaderTitleContext.Provider>
         </main>
-
-        {mobileNav}
       </div>
+
+      {bottomNav}
     </div>
   );
 }

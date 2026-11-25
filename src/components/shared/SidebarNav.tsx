@@ -24,6 +24,17 @@ function isGroup(entry: NavEntry): entry is NavGroup {
   return "items" in entry;
 }
 
+/** The section the current address belongs to (longest matching link), for the header title. */
+export function activeNavLabel(entries: NavEntry[], pathname: string, toHref: (href: string) => string = href => href): string | null {
+  let best: { label: string; length: number } | null = null;
+  for (const item of entries.flatMap(entry => isGroup(entry) ? entry.items : [entry])) {
+    for (const href of new Set([item.href, toHref(item.href)])) {
+      if ((pathname === href || pathname.startsWith(href + "/")) && (!best || href.length > best.length)) best = { label: item.label, length: href.length };
+    }
+  }
+  return best?.label ?? null;
+}
+
 export function SidebarNav({
   entries,
   onNavigate,

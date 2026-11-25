@@ -19,7 +19,7 @@ import { activeRole, safeNextPath } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import { businessWorkspacesEnabled } from "@/features/workspaces/context";
 import { businessEntryPath } from "@/features/workspaces/business-address";
-import { parseBusinessRolePath, businessRolePath } from "@/features/workspaces/business-routes";
+import { businessRolePath } from "@/features/workspaces/business-routes";
 import { loadSessionProfile } from "@/features/workspaces/session";
 
 type LoginFormProps = { business?: { slug: string; branding: LoginBranding; next?: string | null } };
@@ -35,11 +35,6 @@ function LoginInner({ business }: LoginFormProps) {
   const activated = params.get("activated") === "1";
   const reset = params.get("reset") === "1";
   const businessPath = business ? businessEntryPath(business.slug) : null;
-  const roleEntry = business?.next?.split(/[?#]/, 1)[0];
-  const requestedRole = roleEntry ? parseBusinessRolePath(roleEntry) : null;
-  const businessSignInTitle = requestedRole && requestedRole.slug === business?.slug
-    ? requestedRole.rolePath.split("/")[1] === "admin" ? "Admin sign in" : "Branch sign in"
-    : null;
   const next = businessPath ?? params.get("next");
   const platformSignIn = next === "/superadmin";
   const workspaceMode = businessWorkspacesEnabled();
@@ -94,10 +89,11 @@ function LoginInner({ business }: LoginFormProps) {
 
   return (
     <AuthShell
-      title={platformSignIn ? "Superadmin sign in" : businessSignInTitle ?? "Welcome back"}
-      subtitle={platformSignIn ? "Sign in to manage businesses on the platform." : businessBrand ? `Sign in to ${businessBrand.name}.` : undefined}
+      // A business's sign-in is just its logo and "Sign in to <business>"; every role uses the same page.
+      title={platformSignIn ? "Superadmin sign in" : businessBrand ? `Sign in to ${businessBrand.name}` : "Welcome back"}
+      subtitle={platformSignIn ? "Sign in to manage businesses on the platform." : undefined}
       showBrand={platformSignIn || businessBrand !== undefined}
-      brand={platformSignIn ? <PlatformBrand subtitle="Platform admin" /> : businessBrand ? <BusinessMark name={businessBrand.name} logoUrl={businessBrand.logoUrl} accent={businessBrand.accent} size="lg" /> : undefined}
+      brand={platformSignIn ? <PlatformBrand subtitle="Platform admin" /> : businessBrand ? <BusinessMark name={businessBrand.name} logoUrl={businessBrand.logoUrl} accent={businessBrand.accent} size="lg" showName={!businessBrand.logoUrl} /> : undefined}
       brandName={platformSignIn ? PLATFORM_NAME : businessBrand?.name ?? ""}
       accent={businessBrand?.accent}
       neutral={!platformSignIn && businessBrand?.palette !== "warm"}

@@ -1,5 +1,7 @@
+"use client";
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useShellShowsHeading } from "./ShellHeading";
 
 export function PageHeader({
   eyebrow,
@@ -14,6 +16,9 @@ export function PageHeader({
   actions?: ReactNode;
   className?: string;
 }) {
+  // Inside a section the header bar already names the page; keep the heading for screen readers only.
+  const inHeader = useShellShowsHeading();
+  if (inHeader && !eyebrow && !actions) return <h1 className="sr-only">{title}</h1>;
   return (
     <header
       className={cn(
@@ -27,11 +32,11 @@ export function PageHeader({
             {eyebrow}
           </div>
         )}
-        <h1 className="text-forest font-semibold text-2xl sm:text-3xl leading-[1.15] heading-tight mt-1">
+        <h1 className={inHeader ? "sr-only" : "text-forest font-semibold text-2xl sm:text-3xl leading-[1.15] heading-tight mt-1"}>
           {title}
         </h1>
-        {subtitle && (
-          <p className="text-sm text-muted-foreground mt-2 max-w-xl">
+        {subtitle && !inHeader && (
+          <p className={cn("text-sm text-muted-foreground max-w-xl", !inHeader && "mt-2")}>
             {subtitle}
           </p>
         )}

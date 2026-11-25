@@ -52,6 +52,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       entries={entries}
       footerEntries={[{label:"My Profile",href:"/admin/profile",icon:icons.profile}]}
       brandHref="/admin/dashboard"
+      homeHref="/admin/dashboard"
       user={{ name, role: "Central Admin", initials: loading ? "…" : userInitials(name) }}
     >
       {children}

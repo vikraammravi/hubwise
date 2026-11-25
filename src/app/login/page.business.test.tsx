@@ -66,7 +66,9 @@ it("shows tenant branding at the tenant URL and reloads the same address after s
   expect(screen.getByRole("img", { name: "Spice Route Kitchens logo" })).toHaveAttribute("src", loginBrandingRow.logo_url);
   expect(db.rpc).toHaveBeenCalledWith("business_login_branding", { p_slug: "spice-route" });
   expect(createSupabaseServer).toHaveBeenCalledWith({ workspace: false });
-  expect(screen.getByText("Sign in to Spice Route Kitchens.")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Sign in to Spice Route Kitchens" })).toBeInTheDocument();
+  // Just the logo above the title: the name is not repeated under it.
+  expect(screen.queryByText("Spice Route Kitchens", { exact: true })).not.toBeInTheDocument();
   expect(screen.queryByAltText(/Aaha/)).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password?next=%2Fspice-route");
   expect((container.querySelector(".neutral-surface") as HTMLElement).style.getPropertyValue("--primary")).toBe("#0ea5e9");
@@ -93,7 +95,7 @@ it("passes the scoped page to the business entry after entering credentials", as
   db.auth.signInWithPassword.mockResolvedValue({ data: { user: { id: "customer-user" } }, error: null });
   const next = "/spice-route/admin/invoices?tab=invoices#combined";
   render(await BusinessEntryPage({ slug: "spice-route", next }));
-  expect(screen.getByRole("heading", { name: "Admin sign in" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Sign in to Spice Route Kitchens" })).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: "admin@customer.invalid" } });
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: "example-password" } });
   fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
@@ -118,13 +120,13 @@ it("shows no sign-in for unknown or inactive businesses and suppresses private l
 });
 
 it.each([
-  ["Admin sign in", "/spice-route/admin/invoices?tab=combined"],
-  ["Branch sign in", "/spice-route/branch/inventory?date=2026-11-23"],
-])("keeps branded %s and retains the selected continuation after sign-in", async (title, next) => {
+  ["admin", "/spice-route/admin/invoices?tab=combined"],
+  ["branch", "/spice-route/branch/inventory?date=2026-11-23"],
+])("uses the same branded sign-in for %s pages and retains the selected continuation", async (_role, next) => {
   db.rpc.mockReturnValue(queryResult(loginBrandingRow));
   db.auth.signInWithPassword.mockResolvedValue({ data: { user: { id: "customer-user" } }, error: null });
   render(await BusinessEntryPage({ slug: "spice-route", next }));
-  expect(screen.getByRole("heading", { name: title })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Sign in to Spice Route Kitchens" })).toBeVisible();
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: "admin@customer.invalid" } });
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: "example-password" } });
   fireEvent.click(screen.getByRole("button", { name: "Sign In" }));

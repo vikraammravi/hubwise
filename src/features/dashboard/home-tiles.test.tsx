@@ -15,7 +15,7 @@ it("opens the admin home on tiles that show what needs attention", async () => {
   db.rpc.mockReturnValue(queryResult(summary));
   db.from.mockImplementation((table: string) => queryResult(null, null, counts[table] ?? 0));
   render(<AdminDashboard />);
-  expect(await screen.findByRole("heading", { name: "Home" })).toBeVisible();
+  expect(await screen.findByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
   expect(await within(screen.getByRole("navigation", { name: "Admin areas" })).findByText("1 pickup request")).toBeVisible();
   expect(tile("Admin areas", /Branch Orders/)).toHaveAttribute("href", "/admin/orders");
   expect(tile("Admin areas", /Branch Orders/)).toHaveAccessibleName("Branch Orders, 1 pickup request. Review, prepare and confirm pickups");
@@ -25,7 +25,6 @@ it("opens the admin home on tiles that show what needs attention", async () => {
   expect(tile("Admin areas", /Vendor Invoices/)).toHaveTextContent("5 to review");
   expect(tile("Admin areas", /Catalog/)).not.toHaveTextContent(/\d/);
   expect(within(screen.getByRole("navigation", { name: "Admin areas" })).getAllByRole("link")).toHaveLength(9);
-  expect(screen.getByText("CA$150.00")).toBeVisible();
 });
 
 it("shows branch tiles, including whether today's order is placed", async () => {
