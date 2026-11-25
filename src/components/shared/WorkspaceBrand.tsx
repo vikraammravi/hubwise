@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo } from "react";
+import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { businessWorkspacesEnabled } from "@/features/workspaces/context";
 import { businessBranding, type LoginBranding } from "@/features/workspaces/branding";
@@ -40,6 +41,25 @@ export function useWorkspaceTheme(branding: LoginBranding | null | undefined) {
       ACCENT_VARS.forEach(name => root.style.removeProperty(name));
     };
   }, [neutral, accent]);
+}
+
+/**
+ * The browser tab shows the signed-in business's own name (display name, else business name), never
+ * the platform's. Route metadata rewrites the title after client navigations (asynchronously), so it is
+ * re-applied whenever the head changes while the app shell is mounted.
+ */
+export function useWorkspaceTitle() {
+  const { business } = useCurrentUser();
+  const pathname = usePathname();
+  const name = business ? businessBranding(business).name : null;
+  useEffect(() => {
+    if (!name) return;
+    const apply = () => { if (document.title !== name) document.title = name; };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(document.head, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [name, pathname]);
 }
 
 /** Header/sidebar brand: Ahaa's logo for the original look, otherwise the business's own mark. */

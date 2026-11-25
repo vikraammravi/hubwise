@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SidebarNav, type NavEntry, type NavItem } from "./SidebarNav";
-import { WorkspaceBrand, useWorkspaceBranding, useWorkspaceTheme } from "./WorkspaceBrand";
+import { WorkspaceBrand, useWorkspaceBranding, useWorkspaceTheme, useWorkspaceTitle } from "./WorkspaceBrand";
 import type { LoginBranding } from "@/features/workspaces/branding";
 import { businessRolePath } from "@/features/workspaces/business-routes";
 import { useCurrentUser } from "@/lib/useCurrentUser";
@@ -89,6 +89,7 @@ export function AppShell({
     ? businessRolePath(business.slug, profile.role === "CENTRAL_ADMIN" ? "/admin" : "/branch")
     : undefined;
   useWorkspaceTheme(branding);
+  useWorkspaceTitle();
   const profileEntry=footerEntries?.find((entry):entry is NavItem=>"href" in entry&&entry.href.endsWith("/profile"));
 
   return (
