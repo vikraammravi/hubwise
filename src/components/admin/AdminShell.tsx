@@ -9,7 +9,7 @@ import { userInitials } from "@/lib/auth";
 
 const entries: NavEntry[] = [
   {
-    label: "Dashboard",
+    label: "Home",
     href: "/admin/dashboard",
     icon: icons.dashboard,
   },

@@ -5,7 +5,6 @@ import { BranchInventorySummary } from "@/features/inventory/components/BranchIn
 import { formatDate, formatTime } from "@/lib/format";
 import { useGreeting } from "@/lib/useGreeting";
 import { CalendarDays, Clock, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiGrid, type Kpi } from "@/components/shared/KpiCard";
@@ -16,6 +15,10 @@ import { useAsyncData } from "@/lib/useAsyncData";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { ORDER_STATUS_BADGE, ORDER_STATUS_LABEL } from "@/features/orders/domain";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { TileGrid, type HomeTile } from "@/components/shared/TileGrid";
+import { navigationIcons as icons } from "@/lib/navigation-icons";
+import { ATTENTION_POLL_INTERVAL, countBadge, fetchBranchAttention } from "@/features/dashboard/attention-data";
+import { useCallback } from "react";
 
 export default function BranchHomePage() {
   const greeting = useGreeting();
@@ -46,6 +49,23 @@ export default function BranchHomePage() {
     },
   ];
 
+  const locationId = profile?.location_id ?? null;
+  const loadAttention = useCallback((signal: AbortSignal) => fetchBranchAttention(locationId!, signal), [locationId]);
+  const attention = useAsyncData(loadAttention, { enabled: !userLoading && !!locationId, pollInterval: ATTENTION_POLL_INTERVAL });
+  const unpaid = attention.data?.unpaidInvoices ?? 0;
+  const tiles: HomeTile[] = [
+    { label: "Place Order", href: "/branch/order", icon: icons.placeOrder, description: "Order from the hub",
+      badge: data ? (todaysOrder ? { text: "Placed today", tone: "done" } : { text: "Not placed", tone: "attention" }) : null },
+    { label: "Orders", href: unpaid ? "/branch/invoices?tab=invoices" : "/branch/invoices", icon: icons.orders, description: "Track orders and invoices",
+      badge: countBadge(unpaid, "unpaid") ?? countBadge(pending, "in progress", "info") },
+    { label: "Inventory", href: "/branch/inventory", icon: icons.stock, description: "Count stock and see what's on hand" },
+    { label: "Catering", href: "/branch/catering", icon: icons.catering, description: "Bookings and preparation",
+      badge: countBadge(data?.upcomingCateringCount, "upcoming", "info") },
+    { label: "Vendor Invoices", href: "/branch/receipts", icon: icons.vendorInvoices, description: "Supplier bills and scans",
+      badge: countBadge(attention.data?.receiptsToReview, "to review") },
+    { label: "My Profile", href: "/branch/profile", icon: icons.profile, description: "Your details and password" },
+  ];
+
   const pageError = summary.error ?? userError;
   const showLoading = userLoading || summary.loading;
 
@@ -54,32 +74,13 @@ export default function BranchHomePage() {
       <PageHeader
         eyebrow={`${greeting}${profile?.full_name ? `, ${profile.full_name}` : ""}`}
         title={branch?.name ?? "Your Branch"}
-        subtitle="Central kitchen and catering — all in one place."
+        subtitle="Orders, stock and catering — all in one place."
       />
 
-      <BranchInventorySummary/>
       {pageError && <Banner tone="danger">{pageError}</Banner>}
-
-      <Card className="bg-forest text-white border-transparent">
-        <CardContent className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="text-[13px] uppercase tracking-wide text-white/70">
-              Place Order
-            </div>
-            <div className="mt-1 text-lg sm:text-xl font-semibold">
-              Central Kitchen inventory is live.
-            </div>
-            <div className="text-sm text-white/80 mt-1">
-              Order before 10:00 AM
-            </div>
-          </div>
-          <BusinessLink href="/branch/order" className="shrink-0">
-            <Button size="lg" className="w-full sm:w-auto">
-              Start Today&apos;s Order
-            </Button>
-          </BusinessLink>
-        </CardContent>
-      </Card>
+      <TileGrid label="Branch areas" tiles={tiles} loading={showLoading} />
+      <BranchInventorySummary/>
+      <h2 className="pt-2 text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Today</h2>
 
       {showLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">

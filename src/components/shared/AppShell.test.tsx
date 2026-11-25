@@ -8,11 +8,11 @@ it.each([AdminShell,BranchShell,EmployeeShell])("role shells keep password chang
   render(<Shell><p>Page content</p></Shell>);expect(screen.getByText("Page content")).toBeVisible();expect(screen.queryByRole("button",{name:"Change Password"})).not.toBeInTheDocument();expect(screen.getAllByRole("link").some(link=>link.getAttribute("href")?.endsWith("/profile"))).toBe(true);
 });
 
-it("admin sidebar starts with Dashboard and anchors My Profile in the footer",()=>{
+it("admin sidebar starts with Home and anchors My Profile in the footer",()=>{
   render(<AdminShell><p>Page content</p></AdminShell>);
   const sidebar=within(screen.getByRole("complementary"));
   const navigation=sidebar.getAllByRole("navigation");
-  expect(within(navigation[0]).getAllByRole("link")[0]).toHaveTextContent("Dashboard");
+  expect(within(navigation[0]).getAllByRole("link")[0]).toHaveTextContent("Home");
   expect(within(navigation[navigation.length-1]).getByRole("link",{name:"My Profile"})).toHaveAttribute("href","/admin/profile");
 });
 
